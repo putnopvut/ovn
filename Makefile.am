@@ -7,7 +7,6 @@
 
 AUTOMAKE_OPTIONS = foreign subdir-objects
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = datapath
 
 AM_CPPFLAGS = $(SSL_CFLAGS)
 AM_LDFLAGS = $(SSL_LDFLAGS)
@@ -23,8 +22,10 @@ AM_LDFLAGS += $(MSVC64_LDFLAGS)
 PLATFORM = $(MSVC_PLATFORM)
 endif
 
-AM_CPPFLAGS += -I $(top_srcdir)/include
-AM_CPPFLAGS += -I $(top_builddir)/include
+AM_CPPFLAGS += -I $(top_srcdir)/ovs/include
+AM_CPPFLAGS += -I $(top_builddir)/ovs/include
+AM_CPPFLAGS += -I $(top_srcdir)/ovs/lib
+AM_CPPFLAGS += -I $(top_builddir)/ovs/lib
 AM_CPPFLAGS += -I $(top_srcdir)/lib
 AM_CPPFLAGS += -I $(top_builddir)/lib
 
@@ -83,9 +84,6 @@ EXTRA_DIST = \
 	.travis/osx-prepare.sh \
 	appveyor.yml \
 	boot.sh \
-	poc/builders/Vagrantfile \
-	poc/playbook-centos-builder.yml \
-	poc/playbook-ubuntu-builder.yml \
 	$(MAN_FRAGMENTS) \
 	$(MAN_ROOTS) \
 	Vagrantfile \
@@ -458,22 +456,12 @@ dist-docs:
 include Documentation/automake.mk
 include m4/automake.mk
 include lib/automake.mk
-include ofproto/automake.mk
 include utilities/automake.mk
 include tests/automake.mk
-include include/automake.mk
 include third-party/automake.mk
 include debian/automake.mk
-include vswitchd/automake.mk
-include ovsdb/automake.mk
 include rhel/automake.mk
 include xenserver/automake.mk
-include python/automake.mk
 include tutorial/automake.mk
-include vtep/automake.mk
-include datapath-windows/automake.mk
-include datapath-windows/include/automake.mk
-include windows/automake.mk
-include ovn/automake.mk
 include selinux/automake.mk
 include build-aux/automake.mk
