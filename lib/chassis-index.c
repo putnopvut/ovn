@@ -17,8 +17,8 @@
 #include "openvswitch/hmap.h"
 #include "openvswitch/vlog.h"
 #include "ovn/actions.h"
-#include "ovn/lib/chassis-index.h"
-#include "ovn/lib/ovn-sb-idl.h"
+#include "chassis-index.h"
+#include "ovn-sb-idl.h"
 
 VLOG_DEFINE_THIS_MODULE(chassis_index);
 

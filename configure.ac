@@ -178,6 +178,7 @@ AC_SUBST([OVS_LDFLAGS])
 
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_FILES(tests/atlocal)
+AC_CONFIG_FILES(ovs/include/openvswitch/version.h)
 
 AC_CONFIG_COMMANDS([utilities/bugtool/dummy], [:])
 AC_CONFIG_COMMANDS([utilities/dummy], [:])
