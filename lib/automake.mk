@@ -18,7 +18,7 @@ lib_libovn_la_SOURCES = \
 	lib/ovn-util.h \
 	lib/logical-fields.c \
 	lib/logical-fields.h
-nodist_ovn_lib_libovn_la_SOURCES = \
+nodist_lib_libovn_la_SOURCES = \
 	lib/ovn-nb-idl.c \
 	lib/ovn-nb-idl.h \
 	lib/ovn-sb-idl.c \

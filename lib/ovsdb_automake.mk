@@ -4,7 +4,7 @@ ovs_ovsdb_libovsdb_la_LDFLAGS = \
         $(OVS_LTINFO) \
         -Wl,--version-script=$(top_builddir)/ovs/ovsdb/libovsdb.sym \
         $(AM_LDFLAGS)
-ovs/ovsdb_libovsdb_la_SOURCES = \
+ovs_ovsdb_libovsdb_la_SOURCES = \
 	ovs/ovsdb/column.c \
 	ovs/ovsdb/column.h \
 	ovs/ovsdb/condition.c \
