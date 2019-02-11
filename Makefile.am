@@ -26,6 +26,8 @@ AM_CPPFLAGS += -I $(top_srcdir)/ovs/include
 AM_CPPFLAGS += -I $(top_builddir)/ovs/include
 AM_CPPFLAGS += -I $(top_srcdir)/ovs/lib
 AM_CPPFLAGS += -I $(top_builddir)/ovs/lib
+AM_CPPFLAGS += -I $(top_srcdir)/ovs/
+AM_CPPFLAGS += -I $(top_builddir)/ovs/
 AM_CPPFLAGS += -I $(top_srcdir)/lib
 AM_CPPFLAGS += -I $(top_builddir)/lib
 

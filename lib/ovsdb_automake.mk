@@ -59,7 +59,7 @@ MAN_FRAGMENTS += ovs/ovsdb/ovsdb-schemas.man
 # ovsdb-tool
 bin_PROGRAMS += ovs/ovsdb/ovsdb-tool
 ovs_ovsdb_ovsdb_tool_SOURCES = ovs/ovsdb/ovsdb-tool.c
-ovs_ovsdb_ovsdb_tool_LDADD = ovs/ovsdb/libovsdb.la lib/libopenvswitch.la
+ovs_ovsdb_ovsdb_tool_LDADD = ovs/ovsdb/libovsdb.la ovs/lib/libopenvswitch.la
 # ovsdb-tool.1
 man_MANS += ovs/ovsdb/ovsdb-tool.1
 CLEANFILES += ovs/ovsdb/ovsdb-tool.1
@@ -68,7 +68,7 @@ MAN_ROOTS += ovs/ovsdb/ovsdb-tool.1.in
 # ovsdb-client
 bin_PROGRAMS += ovs/ovsdb/ovsdb-client
 ovs_ovsdb_ovsdb_client_SOURCES = ovs/ovsdb/ovsdb-client.c
-ovs_ovsdb_ovsdb_client_LDADD = ovs/ovsdb/libovsdb.la lib/libopenvswitch.la
+ovs_ovsdb_ovsdb_client_LDADD = ovs/ovsdb/libovsdb.la ovs/lib/libopenvswitch.la
 # ovsdb-client.1
 man_MANS += ovs/ovsdb/ovsdb-client.1
 CLEANFILES += ovs/ovsdb/ovsdb-client.1
@@ -77,7 +77,7 @@ MAN_ROOTS += ovs/ovsdb/ovsdb-client.1.in
 # ovsdb-server
 sbin_PROGRAMS += ovs/ovsdb/ovsdb-server
 ovs_ovsdb_ovsdb_server_SOURCES = ovs/ovsdb/ovsdb-server.c
-ovs_ovsdb_ovsdb_server_LDADD = ovs/ovsdb/libovsdb.la lib/libopenvswitch.la
+ovs_ovsdb_ovsdb_server_LDADD = ovs/ovsdb/libovsdb.la ovs/lib/libopenvswitch.la
 # ovsdb-server.1
 man_MANS += ovs/ovsdb/ovsdb-server.1
 CLEANFILES += ovs/ovsdb/ovsdb-server.1
