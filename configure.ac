@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-AC_CONFIG_SUBDIRS([ovs])
-
 AC_PREREQ(2.63)
 AC_INIT(openvswitch, 2.9.90, bugs@openvswitch.org)
 AC_CONFIG_MACRO_DIR([m4])
@@ -21,6 +19,8 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_TESTDIR([tests])
 AM_INIT_AUTOMAKE([tar-pax])
+
+AC_CONFIG_SUBDIRS([ovs])
 
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
