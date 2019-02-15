@@ -474,6 +474,7 @@ include utilities/automake.mk
 include tests/automake.mk
 include third-party/automake.mk
 include debian/automake.mk
+include lib/ovsdb_automake.mk
 include rhel/automake.mk
 include xenserver/automake.mk
 include python/automake.mk
