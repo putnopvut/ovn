@@ -7,6 +7,7 @@
 
 AUTOMAKE_OPTIONS = foreign subdir-objects
 ACLOCAL_AMFLAGS = -I m4
+SUBDIRS = ovs
 
 AM_CPPFLAGS = $(SSL_CFLAGS)
 AM_LDFLAGS = $(SSL_LDFLAGS)
@@ -90,7 +91,14 @@ EXTRA_DIST = \
 	$(MAN_ROOTS) \
 	Vagrantfile \
 	Vagrantfile-FreeBSD \
-	.mailmap
+	.mailmap \
+	TODO.rst \
+	ovn-architecture.7.xml \
+	ovn-nb.ovsschema \
+	ovn-nb.xml \
+	ovn-sb.ovsschema \
+	ovn-sb.xml \
+	ovs/
 bin_PROGRAMS =
 sbin_PROGRAMS =
 bin_SCRIPTS =
@@ -194,9 +202,13 @@ CLEAN_LOCAL += clean-pycov
 ALL_LOCAL += dist-hook-git
 dist-hook-git: distfiles
 	@if test -e $(srcdir)/.git && (git --version) >/dev/null 2>&1; then \
-	  (cd datapath && $(MAKE) distfiles); \
-	  (cat distfiles; sed 's|^|datapath/|' datapath/distfiles) | \
-	    LC_ALL=C sort -u > all-distfiles; \
+	  (cd ovs && $(MAKE) distfiles); \
+	  (cat distfiles; sed 's|^|ovs/|' ovs/distfiles) | \
+	    LC_ALL=C sort -u > ovs-distfiles; \
+	  (cd ovs/datapath && $(MAKE) distfiles); \
+	  (cat distfiles; sed 's|^|ovs/datapath/|' ovs/datapath/distfiles) | \
+	    LC_ALL=C sort -u > datapath-distfiles; \
+	    LC_ALL=C sort -u ovs-distfiles datapath-distfiles > all-distfiles; \
 	  (cd $(srcdir) && git ls-files) | grep -v '\.gitignore$$' | \
 	    LC_ALL=C sort -u > all-gitfiles; \
 	  LC_ALL=C comm -1 -3 all-distfiles all-gitfiles > missing-distfiles; \
@@ -211,7 +223,7 @@ dist-hook-git: distfiles
 	    exit 1; \
 	  fi \
 	fi
-CLEANFILES += all-distfiles all-gitfiles missing-distfiles
+CLEANFILES += ovs-distfiles datapath-distfiles all-distfiles all-gitfiles missing-distfiles
 # The following is based on commands for the Automake "distdir" target.
 distfiles: Makefile
 	@srcdirstrip=`echo "$(srcdir)" | sed 's/[].[^$$\\*]/\\\\&/g'`; \
@@ -462,7 +474,6 @@ include utilities/automake.mk
 include tests/automake.mk
 include third-party/automake.mk
 include debian/automake.mk
-include lib/ovsdb_automake.mk
 include rhel/automake.mk
 include xenserver/automake.mk
 include python/automake.mk
