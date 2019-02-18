@@ -29,6 +29,7 @@ ovs/ subdirectory in this repo.
 
 Next, files and subdirectories that were clearly OVS-only were removed from the
 repo. This includes the following directories:
+
 - datapath
 - datapath-windows
 - include
@@ -40,7 +41,7 @@ repo. This includes the following directories:
 - vtep
 - windows
 
-Next, the /ovn subdirectory had its contents moved to the top level, and the
+Next, the ovn/ subdirectory had its contents moved to the top level, and the
 ovn/ subdirectory was removed.
 
 Next, the build was stabilized. This mostly included altering Makefiles so that
