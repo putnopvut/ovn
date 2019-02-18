@@ -37,6 +37,8 @@
 /aclocal.m4
 /all-distfiles
 /all-gitfiles
+/ovs-distfiles
+/datapath-distfiles
 /autom4te.cache
 /build-arch-stamp
 /build-indep-stamp
