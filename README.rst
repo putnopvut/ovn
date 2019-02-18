@@ -1,133 +1,211 @@
 .. NOTE(stephenfin): If making changes to this file, ensure that the line
    numbers found in 'Documentation/intro/what-is-ovs' are kept up-to-date.
 
+==================
+OVN/OVS Code Split
+==================
+
+This is a *rough* proof of concept for a separation of OVN from its parent
+project, OVS. If you are interested in using OVN or OVS, please visit
+the OpenvSwitch official github page at https://github.com/openvswitch/ovs.git
+
+Please feel free to try this out. For the moment, specific issues with the
+build are good to note, but it's not worth filing a bug report since this
+entire tree will likely be thrown away and redone.
+
+For now, the best feedback would be about the viability of the overall
+approach. What was done well? What can be improved. Below, I've compiled a
+list of issues that I know about.
+
+Approach
+--------
+
+This repo was created by taking a clone of the OVS repo from the official
+upstream repository and then pushing it into an empty new github project. This
+was done to preserve the history of OVN files.
+
+Next, a clone of the OVS master branch was added as a git subtree. This is the
+ovs/ subdirectory in this repo.
+
+Next, files and subdirectories that were clearly OVS-only were removed from the
+repo. This includes the following directories:
+- datapath
+- datapath-windows
+- include
+- lib
+- ofproto
+- ovsdb
+- utilities
+- vswitchd
+- vtep
+- windows
+
+Next, the /ovn subdirectory had its contents moved to the top level, and the
+ovn/ subdirectory was removed.
+
+Next, the build was stabilized. This mostly included altering Makefiles so that
+the project would build successfully.
+
+Next, the ovn tests were verified to work. This mostly involved altering
+expected paths for files so that the tests could succeed.
+
+Finally, the ovs sandbox was verified to run properly. This again consisted of
+altering paths in the ovs-sandbox in order to get everything running
+successfully.
+
+What all works in this repo
+---------------------------
+
+OVN can be built using the ``make`` command.
+All tests that match the ``-k ovn`` keyword pass.
+You can run the ovs-sandbox with OVN by running ``make sandbox SANDBOXFLAGS="--ovn"``
+
+Installation of OVN using ``make install`` has not been tested, nor have any
+additional build options. The build has only been tested on a Linux system, so
+there may be build issues on BSD, Windows, or other systems currently supported
+by OVS/OVN.
+
+Instructions for building
+-------------------------
+Clone the ovn repo::
+
+    git clone https://github.com/putnopvut/ovn.git
+
+Run the bootsrap and configure scripts::
+
+    ./boot.sh
+    ./configure.sh
+
+Touch the manpages.mk file (we'll discuss this later)::
+
+    touch manpages.mk
+
+Build ovn::
+
+    make
+
+Alternately, you can run OVN in a sandbox::
+
+    make sandbox SANDBOXFLAGS="--ovn"
+
 ============
-Open vSwitch
+Further work
 ============
 
-.. image:: https://travis-ci.org/openvswitch/ovs.png
-    :target: https://travis-ci.org/openvswitch/ovs
-.. image:: https://ci.appveyor.com/api/projects/status/github/openvswitch/ovs?branch=master&svg=true&retina=true
-    :target: https://ci.appveyor.com/project/blp/ovs/history
+As has been stated, this is a rough proof of concept. While some of the work
+will likely be reflected in the final product, there are a lot of areas that
+need improvement. These are detailed further in the sections below
 
-What is Open vSwitch?
----------------------
+Obvious improvements
+--------------------
 
-Open vSwitch is a multilayer software switch licensed under the open source
-Apache 2 license.  Our goal is to implement a production quality switch
-platform that supports standard management interfaces and opens the forwarding
-functions to programmatic extension and control.
+At this point, the OVS subtree is completely untouched. In actuality, all OVN-
+specific content from the OVS subtree will need to be removed. Similarly, there
+is still some content in the OVN tree that can be removed. For instance, a great
+deal of the tests/ directory can be pruned. Also, repeated files in the
+Documentation/ directory can be removed.
 
-Open vSwitch is well suited to function as a virtual switch in VM environments.
-In addition to exposing standard control and visibility interfaces to the
-virtual networking layer, it was designed to support distribution across
-multiple physical servers.  Open vSwitch supports multiple Linux-based
-virtualization technologies including Xen/XenServer, KVM, and VirtualBox.
+Because repeated tests have not been removed, it results in some unexpected
+behaviors. If you attempt to run a test, then it will run the test first
+from within the ovs/tests/ directory, and then in the tests/ directory. This
+will partly be fixed by removing repeated tests. However, this points to an
+overarching issue where it would be best if we could completely ignore the
+ovs/ subtree when running tests.
 
-The bulk of the code is written in platform-independent C and is easily ported
-to other environments.  The current release of Open vSwitch supports the
-following features:
+During the build process, you currently must ``touch manpages.mk``. If you do
+not do this, then you will see the following errors when attempting to build::
 
-- Standard 802.1Q VLAN model with trunk and access ports
-- NIC bonding with or without LACP on upstream switch
-- NetFlow, sFlow(R), and mirroring for increased visibility
-- QoS (Quality of Service) configuration, plus policing
-- Geneve, GRE, VXLAN, STT, and LISP tunneling
-- 802.1ag connectivity fault management
-- OpenFlow 1.0 plus numerous extensions
-- Transactional configuration database with C and Python bindings
-- High-performance forwarding using a Linux kernel module
+    lib/daemon-syn.man not found in: . . .
+    lib/vlog-syn.man not found in: . . .
+    lib/ssl-syn.man not found in: . . .
+    lib/ssl-bootstrap-syn.man not found in: . . .
+    lib/ssl-connect-syn.man not found in: . . .
+    lib/common-syn.man not found in: . . .
+    ovsdb/ovsdb-schemas.man not found in: . . .
+    lib/table.man not found in: . . .
+    lib/daemon.man not found in: . . .
+    lib/vlog.man not found in: . . .
+    lib/ssl.man not found in: . . .
+    lib/ssl-bootstrap.man not found in: . . .
+    lib/ssl-connect.man not found in: . . .
+    lib/common.man not found in: . . .
+    lib/daemon-syn.man not found in: . . .
+    lib/service-syn.man not found in: . . .
+    lib/vlog-syn.man not found in: . . .
+    lib/ssl-syn.man not found in: . . .
+    lib/ssl-bootstrap-syn.man not found in: . . .
+    lib/ssl-peer-ca-cert-syn.man not found in: . . .
+    lib/ssl-connect-syn.man not found in: . . .
+    lib/unixctl-syn.man not found in: . . .
+    lib/common-syn.man not found in: . . .
+    lib/daemon.man not found in: . . .
+    lib/service.man not found in: . . .
+    lib/vlog.man not found in: . . .
+    lib/ssl.man not found in: . . .
+    lib/ssl-bootstrap.man not found in: . . .
+    lib/ssl-peer-ca-cert.man not found in: . . .
+    lib/ssl-connect.man not found in: . . .
+    lib/unixctl.man not found in: . . .
+    lib/common.man not found in: . . .
+    lib/vlog-unixctl.man not found in: . . .
+    lib/memory-unixctl.man not found in: . . .
+    lib/coverage-unixctl.man not found in: . . .
+    lib/vlog-syn.man not found in: . . .
+    lib/common-syn.man not found in: . . .
+    ovsdb/ovsdb-schemas.man not found in: . . .
+    lib/vlog.man not found in: . . .
+    lib/common.man not found in: . . .
+    make: *** [Makefile:4022: manpages.mk] Error 1
 
-The included Linux kernel module supports Linux 3.10 and up.
+These errors are cryptic. Grepping for the referenced file names gives nothing
+to go on, as far as I could see. For whatever reason, touching the manpages.mk
+file makes these errors go away. Why? Hell if I know.
 
-Open vSwitch can also operate entirely in userspace without assistance from
-a kernel module.  This userspace implementation should be easier to port than
-the kernel-based switch. OVS in userspace can access Linux or DPDK devices.
-Note Open vSwitch with userspace datapath and non DPDK devices is considered
-experimental and comes with a cost in performance.
+As has been mentioned, aside from ensuring tests pass and the the sandbox works,
+other use cases are untested. For instance, it's highly likely that building
+packages currently does not work.
 
-What's here?
-------------
+Less Obvious Improvements
+-------------------------
 
-The main components of this distribution are:
+There are some files in the tree that are currently specific to OVS, but
+removing them might not be the best choice. For instance, it might be a good
+idea to revise the Vagrantfile so that it is focused on installing OVN
+instead of installing OVS. Something similar could probably be done for files
+in the poc/ and xenserver/ subdirectories.
 
-- ovs-vswitchd, a daemon that implements the switch, along with a companion
-  Linux kernel module for flow-based switching.
-- ovsdb-server, a lightweight database server that ovs-vswitchd queries to
-  obtain its configuration.
-- ovs-dpctl, a tool for configuring the switch kernel module.
-- Scripts and specs for building RPMs for Citrix XenServer and Red Hat
-  Enterprise Linux.  The XenServer RPMs allow Open vSwitch to be installed on a
-  Citrix XenServer host as a drop-in replacement for its switch, with
-  additional functionality.
-- ovs-vsctl, a utility for querying and updating the configuration of
-  ovs-vswitchd.
-- ovs-appctl, a utility that sends commands to running Open vSwitch daemons.
+Moving the contents of the ovn/ subdirectory to the top level makes sense
+given the context of the new repo. However, some files that exist at the top
+level now may make sense to shove into a subdirectory. For instance, the
+ovsschema files for the north and southbound database are at the top level
+now. It may make sense to put them in a subdirectory.
 
-Open vSwitch also provides some tools:
+The way include paths are handled may be a bit more slapdash than necessary.
+It would probably be best if OVN source files made it explicit when they were
+including OVN headers vs OVS headers. For instance::
 
-- ovs-ofctl, a utility for querying and controlling OpenFlow switches and
-  controllers.
-- ovs-pki, a utility for creating and managing the public-key infrastructure
-  for OpenFlow switches.
-- ovs-testcontroller, a simple OpenFlow controller that may be useful for
-  testing (though not for production).
-- A patch to tcpdump that enables it to parse OpenFlow messages.
+    #include "ovs/lib/smap.h"
+    #include "ovs/include/openvswitch/hmap.h"
 
-What other documentation is available?
---------------------------------------
+Currently, these are just done as::
 
-.. TODO(stephenfin): Update with a link to the hosting site of the docs, once
-   we know where that is
+    #include "smap.h"
+    #include "openvswitch/hmap.h"
 
-To install Open vSwitch on a regular Linux or FreeBSD host, please read the
-`installation guide <Documentation/intro/install/general.rst>`__. For specifics
-around installation on a specific platform, refer to one of the `other
-installation guides <Documentation/intro/install/index.rst>`__
+Doing this would require some changes to how IDL files are auto-generated
+since they generate include directives with assumptions about the include
+path.
 
-For answers to common questions, refer to the `FAQ <Documentation/faq>`__.
+I didn't quite 100% grok how auto-generation of the IDL files is done. In
+order to build the north- and south-bound IDL C files, I ended up copying the
+ovsdb automake.mk file from OVS into the lib/ directory for OVN and fixing
+the paths. There is likely a much easier way to generate the IDL C files.
 
-To learn about some advanced features of the Open vSwitch software switch, read
-the `tutorial <Documentation/tutorials/ovs-advanced.rst>`__.
+In a similar vein, there likely is a decent amount of Makefile instructions
+that can be removed. I didn't bother removing stuff unless it was very clear
+that it needed to be removed.
 
-Each Open vSwitch userspace program is accompanied by a manpage.  Many of the
-manpages are customized to your configuration as part of the build process, so
-we recommend building Open vSwitch before reading the manpages.
-
-License
--------
-
-The following is a summary of the licensing of files in this distribution.
-As mentioned, Open vSwitch is licensed under the open source Apache 2 license.
-Some files may be marked specifically with a different license, in which case
-that license applies to the file in question.
-
-
-Files under the datapath directory are licensed under the GNU General Public
-License, version 2.
-
-File build-aux/cccl is licensed under the GNU General Public License, version 2.
-
-The following files are licensed under the 2-clause BSD license.
-    include/windows/getopt.h
-    lib/getopt_long.c
-    lib/conntrack-tcp.c
-
-The following files are licensed under the 3-clause BSD-license
-    include/windows/netinet/icmp6.h
-    include/windows/netinet/ip6.h
-    lib/strsep.c
-
-Files under the xenserver directory are licensed on a file-by-file basis.
-Refer to each file for details.
-
-Files lib/sflow*.[ch] are licensed under the terms of either the
-Sun Industry Standards Source License 1.1, that is available at:
-        http://host-sflow.sourceforge.net/sissl.html
-or the InMon sFlow License, that is available at:
-        http://www.inmon.com/technology/sflowlicense.txt
-
-Contact
--------
-
-bugs@openvswitch.org
+Running OVN in a sandbox currently works, but the way it works could be improved.
+It would probably be better if OVN called into the OVS script to get the OVS
+components started and then start the OVN components locally. Currently, the
+script is copied wholesale.
