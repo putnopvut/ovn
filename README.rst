@@ -209,3 +209,7 @@ Running OVN in a sandbox currently works, but the way it works could be improved
 It would probably be better if OVN called into the OVS script to get the OVS
 components started and then start the OVN components locally. Currently, the
 script is copied wholesale.
+
+The commits in this repo are a mess. They are not grouped very well and they
+have minimal commit messages. It would be a good idea to rebase all of the commits
+so that they are arranged logically and have good explanations.
