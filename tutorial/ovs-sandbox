@@ -122,6 +122,7 @@ General options:
   -d, --gdb-ovsdb      run ovsdb-server under gdb
   --gdb-ovn-northd     run ovn-northd under gdb
   --gdb-ovn-controller run ovn-controller under gdb
+  --gdb-ovn-pinctrl    run ovn-pinctrl under gdb
   --gdb-ovn-controller-vtep run ovn-controller-vtep under gdb
   --dummy=ARG          pass --enable-dummy=ARG to vswitchd (default: override)
   -R, --gdb-run        automatically start running the daemon in gdb
@@ -197,6 +198,9 @@ EOF
         --gdb-ovn-controller)
             gdb_ovn_controller=true
             ;;
+        --gdb-ovn-pinctrl)
+            gdb_ovn_pinctrl=true
+            ;;
         --gdb-ovn-controller-vtep)
             gdb_ovn_controller_vtep=true
             ;;
@@ -248,6 +252,7 @@ EOF
             gdb_ovsdb_ex=true
             gdb_ovn_northd_ex=true
             gdb_ovn_controller_ex=true
+            gdb_ovn_pinctrl_ex=true
             gdb_ovn_controller_vtep_ex=true
             ;;
         -*)
@@ -537,6 +542,10 @@ if $ovn; then
                $OVN_CTRLR_PKI --detach --no-chdir -vsyslog:off \
                --log-file=ovn-controller${inst}.log \
                --pidfile=ovn-controller${inst}.pid -vconsole:off
+        rungdb $gdb_ovn_pinctrl $gdb_ovn_pinctrl_ex ovn-pinctrl \
+               $OVN_CTRL_PKI --detach --no-chdir -vsyslog:off \
+               --log-file=ovn-pinctrl${inst}.log \
+               --pidfile=ovn-pinctrl${inst}.pid -vconsole:off
     done
     rungdb $gdb_ovn_controller_vtep $gdb_ovn_controller_vtep_ex \
         ovn-controller-vtep --detach --no-chdir --pidfile -vconsole:off \

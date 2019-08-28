@@ -50,7 +50,6 @@
 #include "lib/ovn-util.h"
 #include "patch.h"
 #include "physical.h"
-#include "pinctrl.h"
 #include "openvswitch/poll-loop.h"
 #include "lib/bitmap.h"
 #include "lib/hash.h"
@@ -89,41 +88,6 @@ struct pending_pkt {
     struct unixctl_conn *conn;
     char *flow_s;
 };
-
-struct local_datapath *
-get_local_datapath(const struct hmap *local_datapaths, uint32_t tunnel_key)
-{
-    struct hmap_node *node = hmap_first_with_hash(local_datapaths, tunnel_key);
-    return (node
-            ? CONTAINER_OF(node, struct local_datapath, hmap_node)
-            : NULL);
-}
-
-uint32_t
-get_tunnel_type(const char *name)
-{
-    if (!strcmp(name, "geneve")) {
-        return GENEVE;
-    } else if (!strcmp(name, "stt")) {
-        return STT;
-    } else if (!strcmp(name, "vxlan")) {
-        return VXLAN;
-    }
-
-    return 0;
-}
-
-const struct ovsrec_bridge *
-get_bridge(const struct ovsrec_bridge_table *bridge_table, const char *br_name)
-{
-    const struct ovsrec_bridge *br;
-    OVSREC_BRIDGE_TABLE_FOR_EACH (br, bridge_table) {
-        if (!strcmp(br->name, br_name)) {
-            return br;
-        }
-    }
-    return NULL;
-}
 
 static void
 update_sb_monitors(struct ovsdb_idl *ovnsb_idl,
@@ -1046,7 +1010,7 @@ en_runtime_data_run(struct engine_node *node)
                 port_table, qos_table, pb_table,
                 br_int, chassis,
                 active_tunnels, local_datapaths,
-                local_lports, local_lport_ids);
+                local_lports, local_lport_ids, true);
 
     update_ct_zones(local_lports, local_datapaths, ct_zones,
                     ct_zone_bitmap, pending_ct_zones);
@@ -1724,7 +1688,6 @@ main(int argc, char *argv[])
 
     daemonize_complete();
 
-    pinctrl_init();
     lflow_init();
 
     /* Connect to OVS OVSDB instance. */
@@ -1758,14 +1721,9 @@ main(int argc, char *argv[])
     struct ovsdb_idl_index *sbrec_datapath_binding_by_key
         = ovsdb_idl_index_create1(ovnsb_idl_loop.idl,
                                   &sbrec_datapath_binding_col_tunnel_key);
-    struct ovsdb_idl_index *sbrec_mac_binding_by_lport_ip
-        = ovsdb_idl_index_create2(ovnsb_idl_loop.idl,
-                                  &sbrec_mac_binding_col_logical_port,
-                                  &sbrec_mac_binding_col_ip);
-    struct ovsdb_idl_index *sbrec_ip_multicast
-        = ip_mcast_index_create(ovnsb_idl_loop.idl);
     struct ovsdb_idl_index *sbrec_igmp_group
         = igmp_group_index_create(ovnsb_idl_loop.idl);
+
 
     ovsdb_idl_track_add_all(ovnsb_idl_loop.idl);
     ovsdb_idl_omit_alert(ovnsb_idl_loop.idl, &sbrec_chassis_col_nb_cfg);
@@ -2025,20 +1983,6 @@ main(int argc, char *argv[])
                                get_nb_cfg(sbrec_sb_global_table_get(
                                               ovnsb_idl_loop.idl)),
                                en_flow_output.changed);
-                    pinctrl_run(ovnsb_idl_txn,
-                                sbrec_datapath_binding_by_key,
-                                sbrec_port_binding_by_datapath,
-                                sbrec_port_binding_by_key,
-                                sbrec_port_binding_by_name,
-                                sbrec_mac_binding_by_lport_ip,
-                                sbrec_igmp_group,
-                                sbrec_ip_multicast,
-                                sbrec_dns_table_get(ovnsb_idl_loop.idl),
-                                sbrec_controller_event_table_get(
-                                    ovnsb_idl_loop.idl),
-                                br_int, chassis,
-                                &ed_runtime_data.local_datapaths,
-                                &ed_runtime_data.active_tunnels);
 
                     if (en_runtime_data.changed) {
                         update_sb_monitors(ovnsb_idl_loop.idl, chassis,
@@ -2096,7 +2040,6 @@ main(int argc, char *argv[])
 
             if (br_int) {
                 ofctrl_wait();
-                pinctrl_wait(ovnsb_idl_txn);
             }
         }
 
@@ -2182,7 +2125,6 @@ main(int argc, char *argv[])
     unixctl_server_destroy(unixctl);
     lflow_destroy();
     ofctrl_destroy();
-    pinctrl_destroy();
 
     ovsdb_idl_loop_destroy(&ovs_idl_loop);
     ovsdb_idl_loop_destroy(&ovnsb_idl_loop);

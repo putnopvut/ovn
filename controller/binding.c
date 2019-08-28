@@ -473,7 +473,8 @@ consider_local_datapath(struct ovsdb_idl_txn *ovnsb_idl_txn,
                         struct hmap *local_datapaths,
                         struct shash *lport_to_iface,
                         struct sset *local_lports,
-                        struct sset *local_lport_ids)
+                        struct sset *local_lport_ids,
+                        bool do_bind)
 {
     const struct ovsrec_interface *iface_rec
         = shash_find_data(lport_to_iface, binding_rec->logical_port);
@@ -539,6 +540,10 @@ consider_local_datapath(struct ovsdb_idl_txn *ovnsb_idl_txn,
         update_local_lport_ids(local_lport_ids, binding_rec);
     }
 
+    if (!do_bind) {
+        return;
+    }
+
     ovs_assert(ovnsb_idl_txn);
     if (ovnsb_idl_txn) {
         const char *vif_chassis = smap_get(&binding_rec->options,
@@ -573,6 +578,9 @@ consider_local_datapath(struct ovsdb_idl_txn *ovnsb_idl_txn,
         } else if (binding_rec->chassis == chassis_rec) {
             if (!strcmp(binding_rec->type, "virtual")) {
                 /* pinctrl module takes care of binding the ports
+                 *
+                 * struct hmap local_datapaths = HMAP_INITIALIZER(&local_datapaths);
+                 * struct sset
                  * of type 'virtual'.
                  * Release such ports if their virtual parents are no
                  * longer claimed by this chassis. */
@@ -645,7 +653,8 @@ binding_run(struct ovsdb_idl_txn *ovnsb_idl_txn,
             const struct sbrec_chassis *chassis_rec,
             const struct sset *active_tunnels,
             struct hmap *local_datapaths, struct sset *local_lports,
-            struct sset *local_lport_ids)
+            struct sset *local_lport_ids,
+            bool do_bind)
 {
     if (!chassis_rec) {
         return;
@@ -671,9 +680,10 @@ binding_run(struct ovsdb_idl_txn *ovnsb_idl_txn,
                                 sbrec_port_binding_by_datapath,
                                 sbrec_port_binding_by_name,
                                 active_tunnels, chassis_rec, binding_rec,
-                                sset_is_empty(&egress_ifaces) ? NULL :
-                                &qos_map, local_datapaths, &lport_to_iface,
-                                local_lports, local_lport_ids);
+                                do_bind && sset_is_empty(&egress_ifaces) ?
+                                NULL : &qos_map, local_datapaths,
+                                &lport_to_iface, local_lports, local_lport_ids,
+                                do_bind);
 
     }
 
@@ -686,7 +696,7 @@ binding_run(struct ovsdb_idl_txn *ovnsb_idl_txn,
         }
     }
 
-    if (!sset_is_empty(&egress_ifaces)
+    if (do_bind && !sset_is_empty(&egress_ifaces)
         && set_noop_qos(ovs_idl_txn, port_table, qos_table, &egress_ifaces)) {
         const char *entry;
         SSET_FOR_EACH (entry, &egress_ifaces) {

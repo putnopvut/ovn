@@ -43,7 +43,8 @@ void binding_run(struct ovsdb_idl_txn *ovnsb_idl_txn,
                  const struct sbrec_chassis *,
                  const struct sset *active_tunnels,
                  struct hmap *local_datapaths,
-                 struct sset *local_lports, struct sset *local_lport_ids);
+                 struct sset *local_lports, struct sset *local_lport_ids,
+                 bool do_bind);
 bool binding_cleanup(struct ovsdb_idl_txn *ovnsb_idl_txn,
                      const struct sbrec_port_binding_table *,
                      const struct sbrec_chassis *);
