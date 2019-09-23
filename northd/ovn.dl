@@ -122,6 +122,7 @@ extern function ipv6_multicast_to_ethernet(ip6: in6_addr): eth_addr
 extern function scan_eth_addr(s: string): Option<eth_addr>
 extern function scan_eth_addr_prefix(s: string): Option<bit<64>>
 extern function scan_static_dynamic_ip(s: string): Option<ovs_be32>
+extern function scan_static_dynamic_ip6(s: string): Option<in6_addr>
 extern function json_string_escape(s: string): string
 extern function ip_parse(s: string): Option<ovs_be32>
 extern function ip_parse_masked(s: string): Either<string/*err*/, (ovs_be32/*host_ip*/, ovs_be32/*mask*/)>

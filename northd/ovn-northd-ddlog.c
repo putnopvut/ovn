@@ -49,7 +49,7 @@
 #include "northd/ovn_northd_ddlog/ddlog.h"
 
 /* Uncomment to record DDlog commands in a file. */
-//#define DDLOG_RECORDING
+#define DDLOG_RECORDING
 
 VLOG_DEFINE_THIS_MODULE(ovn_northd);
 
@@ -256,6 +256,8 @@ ddlog_debug_dump(ddlog_prog ddlog OVS_UNUSED)
     VLOG_INFO("DDlog profile:\n%s", profile);
     ddlog_string_free(profile);
 #endif
+
+    ddlog_table_debug_dump(ddlog, "lswitch.SwitchPort");
 
 #if 0
     ddlog_table_debug_dump(ddlog, "lswitch.SwitchPortIPv4Address");

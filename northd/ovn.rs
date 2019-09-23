@@ -399,6 +399,16 @@ pub fn ovn_scan_static_dynamic_ip(s: &String) -> std_Option<ovn_ovs_be32> {
     }
 }
 
+pub fn ovn_scan_static_dynamic_ip6(s: &String) -> std_Option<ovn_in6_addr> {
+    unsafe {
+        let f: Vec<&str> = s.split_whitespace().collect();
+        if (f[0] != "dynamic" || f.len() == 1) {
+            ()
+        }
+        ovn_ipv6_parse(&f[1].to_string())
+    }
+}
+
 pub fn ovn_ip_address_and_port_from_lb_key(k: &String) ->
     std_Option<(String, u16, u32)> {
         unsafe {

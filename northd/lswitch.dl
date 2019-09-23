@@ -248,8 +248,10 @@ SwitchPortUp(lsp, up) :-
  * - `peer` - peer router port, if any
  * - `static_dynamic_mac` - port has a "dynamic" address that contains a static MAC,
  *    e.g., "80:fa:5b:06:72:b7 dynamic"
- * - `static_dynamic_ip` - port has a "dynamic" address that contains a static IP,
+ * - `static_dynamic_ip` - port has a "dynamic" address that contains a static IPv4 address,
  *    e.g., "dynamic 192.168.1.2"
+ * - `static_dynamic_ip6` - port has a "dynamic" address that contains a static IPv6 address,
+ *    e.g., "dymaic aef0::1"
  * - `needs_dynamic_ipv4address` - port requires a dynamically allocated IPv4 address
  * - `needs_dynamic_macaddress`  - port requires a dynamically allocated MAC address
  * - `needs_dynamic_tag`         - port requires a dynamically allocated tag
@@ -264,6 +266,7 @@ relation &SwitchPort(
     dynamic_address:            Option<lport_addresses>,
     static_dynamic_mac:         Option<bit<64>>,
     static_dynamic_ip:          Option<ovs_be32>,
+    static_dynamic_ip6:         Option<in6_addr>,
     ps_addresses:               Vec<lport_addresses>,
     ps_eth_addresses:           Vec<string>,
     parent_name:                Option<string>,
@@ -282,6 +285,7 @@ relation &SwitchPort(
             .dynamic_address            = dynamic_address,
             .static_dynamic_mac         = static_dynamic_mac,
             .static_dynamic_ip          = static_dynamic_ip,
+            .static_dynamic_ip6         = static_dynamic_ip6,
             .ps_addresses               = ps_addresses,
             .ps_eth_addresses           = ps_eth_addresses,
             .parent_name                = parent_name,
@@ -346,13 +350,29 @@ relation &SwitchPort(
         var opt_ip: Option<bit<32>> = None;
         for (addr in lsp.addresses) {
             match (scan_static_dynamic_ip(addr)) {
-                None -> (),
+                None -> {
+                    warn("No static dynamic IPv4 addresses");
+                    ()
+                },
                 Some{ip_addr} -> {
+                    warn("Got static dynamic IPv4 address");
                     opt_ip = Some{ip_addr}
                 }
             }
         };
         opt_ip
+    },
+    var static_dynamic_ip6 = {
+        var opt_ip6: Option<in6_addr> = None;
+        for (addr in lsp.addresses) {
+            match (scan_static_dynamic_ip6(addr)) {
+                None -> (),
+                Some{ip6_addr} -> {
+                    opt_ip6 = Some{ip6_addr}
+                }
+            }
+        };
+        opt_ip6
     },
     var has_dyn_lsp_addr = {
         var has_dyn_lsp_addr = false;
@@ -368,7 +388,8 @@ relation &SwitchPort(
     var needs_dynamic_macaddress = has_dyn_lsp_addr and is_none(peer) and is_none(static_dynamic_mac) and
                                    (is_some(subnet) or is_some(ipv6_prefix) or
                                     map_get(other_config, "mac_only") == Some{"true"}),
-    var needs_dynamic_ipv6address = has_dyn_lsp_addr and is_none(peer) and is_some(ipv6_prefix),
+    var needs_dynamic_ipv6address = has_dyn_lsp_addr and is_none(peer) and is_some(ipv6_prefix) and
+                                    is_none(static_dynamic_ip6),
     var parent_name: Option<string> = match (set_nth(lsp.parent_name, 0)) {
         None -> None,
         Some{pname} -> if (pname == "") { None } else { Some{pname} }
