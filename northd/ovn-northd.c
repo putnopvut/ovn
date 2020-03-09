@@ -3174,10 +3174,21 @@ ovn_lb_create(struct northd_context *ctx, struct hmap *lbs,
         lb->vips[n_vips].backend_ips = xstrdup(node->value);
 
         struct nbrec_load_balancer_health_check *lb_health_check = NULL;
-        for (size_t i = 0; i < nbrec_lb->n_health_check; i++) {
-            if (!strcmp(nbrec_lb->health_check[i]->vip, node->key)) {
-                lb_health_check = nbrec_lb->health_check[i];
-                break;
+        if (nbrec_lb->protocol && !strcmp(nbrec_lb->protocol, "sctp")) {
+            if (nbrec_lb->n_health_check > 0) {
+                static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
+                VLOG_WARN_RL(&rl,
+                             "SCTP load balancers do not currently support "
+                             "health checks. Not creating health checks for "
+                             "load balancer " UUID_FMT,
+                             UUID_ARGS(&nbrec_lb->header_.uuid));
+            }
+        } else {
+            for (size_t i = 0; i < nbrec_lb->n_health_check; i++) {
+                if (!strcmp(nbrec_lb->health_check[i]->vip, node->key)) {
+                    lb_health_check = nbrec_lb->health_check[i];
+                    break;
+                }
             }
         }
 
@@ -5559,10 +5570,13 @@ build_lb_rules(struct ovn_datapath *od, struct hmap *lflows, struct ovn_lb *lb)
 
         const char *proto = NULL;
         if (lb_vip->vip_port) {
-            if (lb->nlb->protocol && !strcmp(lb->nlb->protocol, "udp")) {
-                proto = "udp";
-            } else {
-                proto = "tcp";
+            proto = "tcp";
+            if (lb->nlb->protocol) {
+                if (!strcmp(lb->nlb->protocol, "udp")) {
+                    proto = "udp";
+                } else if (!strcmp(lb->nlb->protocol, "sctp")) {
+                    proto = "sctp";
+                }
             }
         }
 
@@ -7566,7 +7580,7 @@ static void
 add_router_lb_flow(struct hmap *lflows, struct ovn_datapath *od,
                    struct ds *match, struct ds *actions, int priority,
                    const char *lb_force_snat_ip, struct lb_vip *lb_vip,
-                   bool is_udp, struct nbrec_load_balancer *lb,
+                   const char *proto, struct nbrec_load_balancer *lb,
                    struct shash *meter_groups)
 {
     build_empty_lb_event_flow(od, lflows, lb_vip, lb, S_ROUTER_IN_DNAT,
@@ -7625,7 +7639,7 @@ add_router_lb_flow(struct hmap *lflows, struct ovn_datapath *od,
 
         if (backend->port) {
             ds_put_format(&undnat_match, " && %s.src == %d) || ",
-                          is_udp ? "udp" : "tcp", backend->port);
+                          proto, backend->port);
         } else {
             ds_put_cstr(&undnat_match, ") || ");
         }
@@ -9170,15 +9184,13 @@ build_lrouter_flows(struct hmap *datapaths, struct hmap *ports,
 
                 int prio = 110;
                 bool is_udp = nullable_string_is_equal(nb_lb->protocol, "udp");
+                bool is_sctp = nullable_string_is_equal(nb_lb->protocol,
+                                                        "sctp");
+                const char *proto = is_udp ? "udp" : is_sctp ? "sctp" : "tcp";
 
                 if (lb_vip->vip_port) {
-                    if (is_udp) {
-                        ds_put_format(&match, " && udp && udp.dst == %d",
-                                      lb_vip->vip_port);
-                    } else {
-                        ds_put_format(&match, " && tcp && tcp.dst == %d",
-                                      lb_vip->vip_port);
-                    }
+                    ds_put_format(&match, " && %s && %s.dst == %d", proto,
+                                  proto, lb_vip->vip_port);
                     prio = 120;
                 }
 
@@ -9187,7 +9199,7 @@ build_lrouter_flows(struct hmap *datapaths, struct hmap *ports,
                                   od->l3redirect_port->json_key);
                 }
                 add_router_lb_flow(lflows, od, &match, &actions, prio,
-                                   lb_force_snat_ip, lb_vip, is_udp,
+                                   lb_force_snat_ip, lb_vip, proto,
                                    nb_lb, meter_groups);
             }
         }
