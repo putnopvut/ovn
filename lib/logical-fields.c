@@ -123,6 +123,10 @@ ovn_init_symtab(struct shash *symtab)
 
     expr_symtab_add_field(symtab, "ct_label", MFF_CT_LABEL, NULL, false);
     expr_symtab_add_subfield(symtab, "ct_label.blocked", NULL, "ct_label[0]");
+    expr_symtab_add_subfield(symtab, "ct_label.ecmp_reply_eth", NULL,
+                             "ct_label[0..47]");
+    expr_symtab_add_subfield(symtab, "ct_label.ecmp_reply_port", NULL,
+                             "ct_label[48..63]");
 
     expr_symtab_add_field(symtab, "ct_state", MFF_CT_STATE, NULL, false);
 
