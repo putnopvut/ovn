@@ -3031,6 +3031,12 @@ tcp.flags = RST;
         VLAN on the physical network. The VLAN ID is used to match
         incoming traffic and is also added to outgoing traffic.
       </column>
+
+      <column name="statistics">
+        An array of <ref table="Port_Binding_Statistics" /> references. A
+        separate row is created for each chassis on which this port binding
+        logs packets in.
+      </column>
     </group>
 
     <group title="VTEP Options">
@@ -4230,5 +4236,21 @@ tcp.flags = RST;
         See <em>External IDs</em> at the beginning of this document.
       </column>
     </group>
+  </table>
+  <table name="Port_Binding_Statistics">
+    <p>
+      This table stores statistics about port bindings.
+    </p>
+
+    <column name="chassis_name">
+      The chassis on which the statistics were recorded.
+    </column>
+
+    <column name="pinctrl_ops">
+      An array storing the number of times a particular packet in operation
+      has occurred on this port binding. The array indices correspond to
+      internal numeric representations of the operations.
+    </column>
+
   </table>
 </database>

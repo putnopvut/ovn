@@ -471,6 +471,42 @@ void *ovnact_put(struct ofpbuf *, enum ovnact_type, size_t len);
 OVNACTS
 #undef OVNACT
 
+#define ACTION_OPCODES \
+    ACTION_OPCODE(ARP, "arp") \
+    ACTION_OPCODE(PUT_ARP, "put_arp") \
+    ACTION_OPCODE(PUT_DHCP_OPTS, "put_dhcp_opts") \
+    ACTION_OPCODE(ND_NA, "nd_na") \
+    ACTION_OPCODE(PUT_ND, "put_nd") \
+    ACTION_OPCODE(PUT_DHCPV6_OPTS, "put_dhcpv6_opts") \
+    ACTION_OPCODE(DNS_LOOKUP, "dns_lookup") \
+    ACTION_OPCODE(LOG, "log") \
+    ACTION_OPCODE(PUT_ND_RA_OPTS, "put_nd_ra_opts") \
+    ACTION_OPCODE(ND_NS, "nd_ns") \
+    ACTION_OPCODE(ICMP, "icmp") \
+    ACTION_OPCODE(TCP_RESET, "tcp_reset") \
+    ACTION_OPCODE(ND_NA_ROUTER, "nd_na_router") \
+    ACTION_OPCODE(PUT_ICMP4_FRAG_MTU, "put_icmp4_frag_mtu") \
+    ACTION_OPCODE(ICMP4_ERROR, "icmp4_error") \
+    ACTION_OPCODE(EVENT, "trigger_event") \
+    ACTION_OPCODE(IGMP, "igmp") \
+    ACTION_OPCODE(BIND_VPORT, "bind_vport") \
+    ACTION_OPCODE(HANDLE_SVC_CHECK, "handle_svc_check") \
+    ACTION_OPCODE(DHCP6_SERVER, "handle_dcpv6_reply") \
+    ACTION_OPCODE(ICMP6_ERROR, "icmp6_error") \
+    ACTION_OPCODE(PUT_ICMP6_FRAG_MTU, "put_icmp6_frag_mtu") 
+
+enum OVS_PACKED_ENUM action_opcode {
+#define ACTION_OPCODE(ENUM, NAME) ACTION_OPCODE_##ENUM,
+    ACTION_OPCODES
+#undef ACTION_OPCODE
+    N_ACTION_OPCODES,
+};
+
+const char *get_action_opcode_name(enum action_opcode opcode);
+
+#if 0
+Old enum definition of opcodes. Serves as good documentation for
+actions and their arguments.
 enum action_opcode {
     /* "arp { ...actions... }".
      *
@@ -628,6 +664,7 @@ enum action_opcode {
      */
     ACTION_OPCODE_REJECT,
 };
+#endif
 
 /* Header. */
 struct action_header {

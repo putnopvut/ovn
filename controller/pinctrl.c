@@ -38,6 +38,7 @@
 #include "openvswitch/ofp-util.h"
 #include "openvswitch/vlog.h"
 #include "lib/random.h"
+#include "unixctl.h"
 
 #include "lib/dhcp.h"
 #include "ovn-controller.h"
@@ -160,6 +161,7 @@ VLOG_DEFINE_THIS_MODULE(pinctrl);
 static struct ovs_mutex pinctrl_mutex = OVS_MUTEX_INITIALIZER;
 static struct seq *pinctrl_handler_seq;
 static struct seq *pinctrl_main_seq;
+struct hmap pinctrl_stats;
 
 static void *pinctrl_handler(void *arg);
 
@@ -490,6 +492,7 @@ pinctrl_init(void)
     pinctrl.br_int_name = NULL;
     pinctrl_handler_seq = seq_create();
     pinctrl_main_seq = seq_create();
+    hmap_init(&pinctrl_stats);
 
     latch_init(&pinctrl.pinctrl_thread_exit);
     pinctrl.pinctrl_thread = ovs_thread_create("ovn_pinctrl", pinctrl_handler,
@@ -2812,6 +2815,169 @@ exit:
     dp_packet_uninit(pkt_out_ptr);
 }
 
+struct pinctrl_stats_entry {
+    struct hmap_node hmap_node;
+    int64_t count[N_ACTION_OPCODES];
+    int64_t port_key;
+    int64_t dp_key;
+};
+
+static void
+pinctrl_stats_wait(struct ovsdb_idl_txn *ovnsb_idl_txn)
+{
+    if (ovnsb_idl_txn && !hmap_is_empty(&pinctrl_stats)) {
+        poll_immediate_wake();
+    }
+}
+
+static void
+flush_pinctrl_stats(void)
+{
+    struct pinctrl_stats_entry *entry;
+    HMAP_FOR_EACH_POP (entry, hmap_node, &pinctrl_stats) {
+        free(entry);
+    }
+}
+
+static void
+pinctrl_stats_destroy(void)
+{
+    flush_pinctrl_stats();
+    hmap_destroy(&pinctrl_stats);
+}
+
+static struct pinctrl_stats_entry *
+find_or_create_pinctrl_stats_entry(int64_t dp_key, uint32_t port_key)
+{
+    uint32_t hash = hash_2words(dp_key, port_key);
+    struct pinctrl_stats_entry *entry;
+
+    HMAP_FOR_EACH_WITH_HASH (entry, hmap_node, hash, &pinctrl_stats) {
+        if (entry->dp_key == dp_key && entry->port_key == port_key) {
+            return entry;
+        }
+    }
+
+    entry = xzalloc(sizeof *entry);
+    entry->dp_key = dp_key;
+    entry->port_key = port_key;
+    hmap_insert(&pinctrl_stats, &entry->hmap_node, hash);
+
+    return entry;
+}
+
+static void
+pinctrl_log_stats(uint32_t opcode, const struct flow *md)
+{
+    int64_t dp_key = ntohll(md->metadata);
+    uint32_t port_key = md->regs[MFF_LOG_INPORT - MFF_REG0];
+
+    struct pinctrl_stats_entry *entry =
+        find_or_create_pinctrl_stats_entry(dp_key, port_key);
+    ovs_assert(entry != NULL);
+    ++entry->count[opcode];
+
+    notify_pinctrl_main();
+}
+
+static void
+get_map_from_pb_stats(const struct sbrec_port_binding_statistics *stats,
+                      struct simap *map)
+{
+    for (size_t i = 0; i < stats->n_pinctrl_ops; i++) {
+        simap_put(map, stats->key_pinctrl_ops[i],
+                  stats->value_pinctrl_ops[i]);
+    }
+}
+
+static const struct sbrec_port_binding_statistics *
+get_pb_chassis_stats(struct ovsdb_idl_txn *ovnsb_idl_txn,
+                     const struct sbrec_port_binding *pb,
+                     const struct sbrec_chassis *chassis)
+{
+    const struct sbrec_port_binding_statistics *stats;
+
+    for (size_t i = 0; i < pb->n_statistics; i++) {
+        stats = pb->statistics[i];
+        if (!strcmp(stats->chassis_name, chassis->name)) {
+            return stats;
+        }
+    }
+
+    /* Stats not found for this chassis. Add it in now */
+    stats = sbrec_port_binding_statistics_insert(ovnsb_idl_txn);
+    sbrec_port_binding_statistics_set_chassis_name(stats, chassis->name);
+
+    struct sbrec_port_binding_statistics **new_stats =
+        xmalloc(sizeof *new_stats * (pb->n_statistics + 1));
+    nullable_memcpy(new_stats, pb->statistics,
+                    sizeof *new_stats * pb->n_statistics);
+    new_stats[pb->n_statistics] =
+        CONST_CAST(struct sbrec_port_binding_statistics *, stats);
+
+    sbrec_port_binding_set_statistics(pb, new_stats, pb->n_statistics + 1);
+    free(new_stats);
+
+    return stats;
+}
+
+static void
+run_pinctrl_stats(struct ovsdb_idl_txn *ovnsb_idl_txn,
+                  struct ovsdb_idl_index *sbrec_port_binding_by_key,
+                  struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
+                  const struct sbrec_chassis *chassis)
+{
+    if (!ovnsb_idl_txn) {
+        return;
+    }
+
+    struct pinctrl_stats_entry *entry;
+    HMAP_FOR_EACH_POP(entry, hmap_node, &pinctrl_stats) {
+        const struct sbrec_port_binding *pb =
+            lport_lookup_by_key(sbrec_datapath_binding_by_key,
+                                sbrec_port_binding_by_key,
+                                entry->dp_key, entry->port_key);
+
+        if (!pb) {
+            free(entry);
+            continue;
+        }
+
+        const struct sbrec_port_binding_statistics *pb_chassis_stats =
+            get_pb_chassis_stats(ovnsb_idl_txn, pb, chassis);
+
+        struct simap pb_stats_map = SIMAP_INITIALIZER(&pb_stats_map);
+        get_map_from_pb_stats(pb_chassis_stats, &pb_stats_map);
+
+        size_t i;
+        for (i = 0; i < N_ACTION_OPCODES; i++) {
+            simap_increase(&pb_stats_map, get_action_opcode_name(i),
+                           entry->count[i]);
+        }
+
+        size_t num_stats = simap_count(&pb_stats_map);
+        const char **ops = xmalloc(num_stats * sizeof *ops);
+        int64_t *counts = xmalloc(num_stats * sizeof *counts);
+
+        struct simap_node *node;
+        i = 0;
+        SIMAP_FOR_EACH (node, &pb_stats_map) {
+            ops[i] = node->name;
+            counts[i] = node->data;
+            i++;
+        }
+
+        sbrec_port_binding_statistics_set_pinctrl_ops(pb_chassis_stats, ops,
+                                                      counts,
+                                                      num_stats);
+
+        simap_destroy(&pb_stats_map);
+        free(ops);
+        free(counts);
+        free(entry);
+    }
+}
+
 /* Called with in the pinctrl_handler thread context. */
 static void
 process_packet_in(struct rconn *swconn, const struct ofp_header *msg)
@@ -2967,6 +3133,10 @@ process_packet_in(struct rconn *swconn, const struct ofp_header *msg)
                      ntohl(ah->opcode));
         break;
     }
+
+    ovs_mutex_lock(&pinctrl_mutex);
+    pinctrl_log_stats(ntohl(ah->opcode), &pin.flow_metadata.flow);
+    ovs_mutex_unlock(&pinctrl_mutex);
 }
 
 /* Called with in the pinctrl_handler thread context. */
@@ -3179,6 +3349,8 @@ pinctrl_run(struct ovsdb_idl_txn *ovnsb_idl_txn,
                          local_datapaths);
     sync_svc_monitors(ovnsb_idl_txn, svc_mon_table, sbrec_port_binding_by_name,
                       chassis);
+    run_pinctrl_stats(ovnsb_idl_txn, sbrec_port_binding_by_key,
+                      sbrec_datapath_binding_by_key, chassis);
     ovs_mutex_unlock(&pinctrl_mutex);
 }
 
@@ -3702,6 +3874,7 @@ pinctrl_wait(struct ovsdb_idl_txn *ovnsb_idl_txn)
     wait_put_vport_bindings(ovnsb_idl_txn);
     int64_t new_seq = seq_read(pinctrl_main_seq);
     seq_wait(pinctrl_main_seq, new_seq);
+    pinctrl_stats_wait(ovnsb_idl_txn);
 }
 
 /* Called by ovn-controller. */
@@ -3724,6 +3897,7 @@ pinctrl_destroy(void)
     destroy_svc_monitors();
     seq_destroy(pinctrl_main_seq);
     seq_destroy(pinctrl_handler_seq);
+    pinctrl_stats_destroy();
 }
 
 /* Implementation of the "put_arp" and "put_nd" OVN actions.  These

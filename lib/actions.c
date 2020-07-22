@@ -55,6 +55,18 @@ OVNACTS
 
 /* Helpers. */
 
+const char *action_opcode_names [] = {
+#define ACTION_OPCODE(ENUM, NAME) NAME,
+    ACTION_OPCODES
+#undef ACTION_OPCODE
+};
+
+const char *
+get_action_opcode_name(enum action_opcode opcode)
+{
+    return action_opcode_names[opcode];
+}
+
 /* Implementation of ovnact_put_<ENUM>(). */
 void *
 ovnact_put(struct ofpbuf *ovnacts, enum ovnact_type type, size_t len)

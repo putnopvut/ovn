@@ -54,6 +54,7 @@
 #include "timeval.h"
 #include "util.h"
 #include "svec.h"
+#include "ovn/actions.h"
 
 VLOG_DEFINE_THIS_MODULE(sbctl);
 
@@ -1499,6 +1500,95 @@ cmd_set_ssl(struct ctl_context *ctx)
     sbrec_sb_global_set_ssl(sb_global, ssl);
 }
 
+static void
+pre_cmd_print_port_statistics(struct ctl_context *ctx)
+{
+    ovsdb_idl_add_column(ctx->idl, &sbrec_port_binding_col_statistics);
+    ovsdb_idl_add_column(ctx->idl, &sbrec_port_binding_col_datapath);
+    ovsdb_idl_add_column(ctx->idl, &sbrec_port_binding_col_logical_port);
+    ovsdb_idl_add_column(ctx->idl, &sbrec_port_binding_col_chassis);
+
+    ovsdb_idl_add_column(ctx->idl, &sbrec_chassis_col_name);
+
+    ovsdb_idl_add_column(ctx->idl, &sbrec_datapath_binding_col_external_ids);
+
+    ovsdb_idl_add_column(ctx->idl, &sbrec_port_binding_statistics_col_chassis_name);
+    ovsdb_idl_add_column(ctx->idl, &sbrec_port_binding_statistics_col_pinctrl_ops);
+}
+
+static void
+cmd_print_port_statistics(struct ctl_context *ctx)
+{
+    struct ovsdb_idl *ovnsb_idl = ctx->idl;
+
+    const struct sbrec_port_binding *pb;
+    struct shash dps = SHASH_INITIALIZER(&dps);
+
+    struct pb_list_node {
+        const struct sbrec_port_binding *pb;
+        struct ovs_list list;
+    };
+
+    /* Organize stats by datapath */
+    SBREC_PORT_BINDING_FOR_EACH (pb, ovnsb_idl) {
+        if (!pb->n_statistics || !pb->datapath) {
+            continue;
+        }
+        const char *dp_name = smap_get_def(&pb->datapath->external_ids, "name",
+                                           "(none)");
+        struct ovs_list *pb_list;
+        pb_list = shash_find_data(&dps, dp_name);
+        if (!pb_list) {
+            pb_list = xmalloc(sizeof *pb_list);
+            ovs_list_init(pb_list);
+            shash_add(&dps, dp_name, pb_list);
+        }
+        struct pb_list_node *node = xzalloc(sizeof *node);
+        node->pb = pb;
+        ovs_list_push_back(pb_list, &node->list);
+    }
+
+    struct shash_node *node;
+    SHASH_FOR_EACH (node, &dps) {
+        const char *dp_name = node->name;
+        struct ovs_list *pb_list = node->data;
+        ds_put_format(&ctx->output, "%s\n", dp_name);
+        struct pb_list_node *pb_node;
+        LIST_FOR_EACH_POP (pb_node, list, pb_list) {
+            pb = pb_node->pb;
+            ds_put_format(&ctx->output, "  %s\n", pb->logical_port);
+            for (int i = 0; i < pb->n_statistics; i++) {
+                const struct sbrec_port_binding_statistics *stats;
+                stats = pb->statistics[i];
+                ds_put_format(&ctx->output, "    %s\n", stats->chassis_name);
+                for (int j = 0; j < stats->n_pinctrl_ops; j++) {
+                    ds_put_format(&ctx->output, "      %s: %" PRId64 "\n",
+                                  stats->key_pinctrl_ops[j],
+                                  stats->value_pinctrl_ops[j]);
+                }
+            }
+            free(pb_node);
+        }
+    }
+
+    shash_destroy_free_data(&dps);
+}
+static void
+pre_cmd_clear_port_statistics(struct ctl_context *ctx)
+{
+    ovsdb_idl_add_column(ctx->idl, &sbrec_port_binding_col_statistics);
+}
+
+static void
+cmd_clear_port_statistics(struct ctl_context *ctx)
+{
+    struct ovsdb_idl *ovnsb_idl = ctx->idl;
+    const struct sbrec_port_binding *pb;
+
+    SBREC_PORT_BINDING_FOR_EACH (pb, ovnsb_idl) {
+        sbrec_port_binding_set_statistics(pb, NULL, 0);
+    }
+}
 
 static const struct ctl_table_class tables[SBREC_N_TABLES] = {
     [SBREC_TABLE_CHASSIS].row_ids[0] = {&sbrec_chassis_col_name, NULL, NULL},
@@ -1841,6 +1931,8 @@ static const struct ctl_command_syntax sbctl_commands[] = {
     {"set-ssl", 3, 5,
         "PRIVATE-KEY CERTIFICATE CA-CERT [SSL-PROTOS [SSL-CIPHERS]]",
         pre_cmd_set_ssl, cmd_set_ssl, NULL, "--bootstrap", RW},
+    {"print-port-statistics", 0, 0, "", pre_cmd_print_port_statistics, cmd_print_port_statistics, NULL, "", RO},
+    {"clear-port-statistics", 0, 0, "", pre_cmd_clear_port_statistics, cmd_clear_port_statistics, NULL, "", RW},
 
     {NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, RO},
 };

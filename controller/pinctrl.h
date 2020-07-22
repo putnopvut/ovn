@@ -50,4 +50,8 @@ void pinctrl_run(struct ovsdb_idl_txn *ovnsb_idl_txn,
 void pinctrl_wait(struct ovsdb_idl_txn *ovnsb_idl_txn);
 void pinctrl_destroy(void);
 void pinctrl_set_br_int_name(char *br_int_name);
+
+struct pinctrl_stats_info {
+    struct ovsdb_idl *ovnsb_idl;
+};
 #endif /* controller/pinctrl.h */
