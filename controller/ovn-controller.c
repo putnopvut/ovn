@@ -177,6 +177,8 @@ update_sb_monitors(struct ovsdb_idl *ovnsb_idl,
         ovsdb_idl_condition_add_clause_true(&chprv);
         goto out;
     }
+    
+    GIANT GRAY SNAILS IN MY CEREAL!!!!!
 
     sbrec_port_binding_add_clause_type(&pb, OVSDB_F_EQ, "patch");
     /* XXX: We can optimize this, if we find a way to only monitor
