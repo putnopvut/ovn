@@ -6073,42 +6073,6 @@ build_lrouter_groups(struct hmap *ports, struct ovs_list *lr_list)
     }
 }
 
-/* Returns 'true' if the IPv4 'addr' is on the same subnet with one of the
- * IPs configured on the router port.
- */
-static bool
-lrouter_port_ipv4_reachable(const struct ovn_port *op, ovs_be32 addr)
-{
-    for (size_t i = 0; i < op->lrp_networks.n_ipv4_addrs; i++) {
-        struct ipv4_netaddr *op_addr = &op->lrp_networks.ipv4_addrs[i];
-
-        if ((addr & op_addr->mask) == op_addr->network) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/* Returns 'true' if the IPv6 'addr' is on the same subnet with one of the
- * IPs configured on the router port.
- */
-static bool
-lrouter_port_ipv6_reachable(const struct ovn_port *op,
-                            const struct in6_addr *addr)
-{
-    for (size_t i = 0; i < op->lrp_networks.n_ipv6_addrs; i++) {
-        struct ipv6_netaddr *op_addr = &op->lrp_networks.ipv6_addrs[i];
-
-        struct in6_addr nat_addr6_masked =
-            ipv6_addr_bitand(addr, &op_addr->mask);
-
-        if (ipv6_addr_equals(&nat_addr6_masked, &op_addr->network)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /*
  * Ingress table 19: Flows that flood self originated ARP/ND packets in the
  * switching domain.
@@ -6141,22 +6105,6 @@ build_lswitch_rport_arp_req_self_orig_flow(struct ovn_port *op,
             continue;
         }
 
-        /* Check if the ovn port has a network configured on which we could
-         * expect ARP requests/NS for the DNAT external_ip.
-         */
-        if (nat_entry_is_v6(nat_entry)) {
-            struct in6_addr *addr = &nat_entry->ext_addrs.ipv6_addrs[0].addr;
-
-            if (!lrouter_port_ipv6_reachable(op, addr)) {
-                continue;
-            }
-        } else {
-            ovs_be32 addr = nat_entry->ext_addrs.ipv4_addrs[0].addr;
-
-            if (!lrouter_port_ipv4_reachable(op, addr)) {
-                continue;
-            }
-        }
         sset_add(&all_eth_addrs, nat->external_mac);
     }
 
@@ -6278,35 +6226,6 @@ build_lswitch_rport_arp_req_flows(struct ovn_port *op,
 
     get_router_load_balancer_ips(op->od, &all_ips_v4, &all_ips_v6);
 
-    const char *ip_addr;
-    const char *ip_addr_next;
-    SSET_FOR_EACH_SAFE (ip_addr, ip_addr_next, &all_ips_v4) {
-        ovs_be32 ipv4_addr;
-
-        /* Check if the ovn port has a network configured on which we could
-         * expect ARP requests for the LB VIP.
-         */
-        if (ip_parse(ip_addr, &ipv4_addr) &&
-                lrouter_port_ipv4_reachable(op, ipv4_addr)) {
-            continue;
-        }
-
-        sset_delete(&all_ips_v4, SSET_NODE_FROM_NAME(ip_addr));
-    }
-    SSET_FOR_EACH_SAFE (ip_addr, ip_addr_next, &all_ips_v6) {
-        struct in6_addr ipv6_addr;
-
-        /* Check if the ovn port has a network configured on which we could
-         * expect NS requests for the LB VIP.
-         */
-        if (ipv6_parse(ip_addr, &ipv6_addr) &&
-                lrouter_port_ipv6_reachable(op, &ipv6_addr)) {
-            continue;
-        }
-
-        sset_delete(&all_ips_v6, SSET_NODE_FROM_NAME(ip_addr));
-    }
-
     for (size_t i = 0; i < op->od->nbr->n_nat; i++) {
         struct ovn_nat *nat_entry = &op->od->nat_entries[i];
         const struct nbrec_nat *nat = nat_entry->nb;
@@ -6319,21 +6238,10 @@ build_lswitch_rport_arp_req_flows(struct ovn_port *op,
             continue;
         }
 
-        /* Check if the ovn port has a network configured on which we could
-         * expect ARP requests/NS for the DNAT external_ip.
-         */
         if (nat_entry_is_v6(nat_entry)) {
-            struct in6_addr *addr = &nat_entry->ext_addrs.ipv6_addrs[0].addr;
-
-            if (lrouter_port_ipv6_reachable(op, addr)) {
-                sset_add(&all_ips_v6, nat->external_ip);
-            }
+            sset_add(&all_ips_v6, nat->external_ip);
         } else {
-            ovs_be32 addr = nat_entry->ext_addrs.ipv4_addrs[0].addr;
-
-            if (lrouter_port_ipv4_reachable(op, addr)) {
-                sset_add(&all_ips_v4, nat->external_ip);
-            }
+            sset_add(&all_ips_v4, nat->external_ip);
         }
     }
 
