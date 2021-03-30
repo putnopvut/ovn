@@ -1,7 +1,7 @@
 {
     "name": "OVN_Southbound",
     "version": "20.17.0",
-    "cksum": "669123379 26536",
+    "cksum": "367711378 26723",
     "tables": {
         "SB_Global": {
             "columns": {
@@ -225,6 +225,9 @@
                 "nat_addresses": {"type": {"key": "string",
                                            "min": 0,
                                            "max": "unlimited"}},
+                "router_addresses": {"type": {"key": "string",
+                                              "min": 0,
+                                              "max": "unlimited"}},
                 "up": {"type": {"key": "boolean", "min": 0, "max": 1}},
                 "external_ids": {"type": {"key": "string",
                                  "value": "string",

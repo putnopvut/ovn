@@ -116,6 +116,7 @@ relation OutProxy_Port_Binding (
     tag: Option<integer>,
     mac: Set<string>,
     nat_addresses: Set<string>,
+    router_addresses: Set<string>,
     external_ids: Map<string,string>
 )
 
@@ -131,6 +132,7 @@ OutProxy_Port_Binding(._uuid              = lsp._uuid,
                       .tag                = tag,
                       .mac                = lsp.addresses,
                       .nat_addresses      = set_empty(),
+                      .router_addresses   = set_empty(),
                       .external_ids       = eids) :-
     sp in &SwitchPort(.lsp = lsp, .sw = &sw),
     SwitchPortNewDynamicTag(lsp._uuid, opt_tag),
@@ -169,6 +171,7 @@ OutProxy_Port_Binding(._uuid              = lsp._uuid,
                       .tag                = None,
                       .mac                = lsp.addresses,
                       .nat_addresses      = nat_addresses,
+                      .router_addresses   = router_addresses,
                       .external_ids       = eids) :-
     &SwitchPort(.lsp = lsp, .sw = &sw, .peer = peer),
     var eids = {
@@ -194,13 +197,17 @@ OutProxy_Port_Binding(._uuid              = lsp._uuid,
             }
         }
     },
-    var base_nat_addresses = {
+    var all_nat_addresses = match (peer) {
+        None -> { set_empty() },
+        Some{rport} -> get_nat_addresses(deref(rport))
+    },
+    var garp_nat_addresses = {
         match (lsp.options.get("nat-addresses")) {
             None -> { set_empty() },
             Some{"router"} -> match ((l3dgw_port, opt_chassis, peer)) {
                                  (None, None, _) -> set_empty(),
                                  (_, _, None) -> set_empty(),
-                                 (_, _, Some{rport}) -> get_nat_addresses(deref(rport))
+                                 (_, _, Some{rport}) -> all_nat_addresses
                               },
             Some{nat_addresses} -> {
                 /* Only accept manual specification of ethernet address
@@ -233,7 +240,11 @@ OutProxy_Port_Binding(._uuid              = lsp._uuid,
      * Note: Port_Binding.nat_addresses column is also used for
      * sending the GARPs for the router port IPs.
      * */
-    var garp_nat_addresses = match (peer) {
+    var router_interface_addresses = match (peer) {
+        None -> set_empty(),
+        Some{rport} -> set_singleton(get_router_interface_addresses(deref(rport)))
+    },
+    var garp_router_interface_addresses = match (peer) {
         Some{rport} -> match (
             (rport.lrp.options.get_bool_def("reside-on-redirect-chassis", false)
              and l3dgw_port.is_some()) or
@@ -241,11 +252,12 @@ OutProxy_Port_Binding(._uuid              = lsp._uuid,
             (rport.router.lr.options.contains_key("chassis") and
              not sw.localnet_ports.is_empty())) {
             false -> set_empty(),
-            true -> set_singleton(get_garp_nat_addresses(deref(rport)))
+            true -> router_interface_addresses
         },
         None -> set_empty()
     },
-    var nat_addresses = set_union(base_nat_addresses, garp_nat_addresses).
+    var nat_addresses = set_union(garp_nat_addresses, garp_router_interface_addresses),
+    var router_addresses = set_union(all_nat_addresses, router_interface_addresses).
 
 /* Case 3: Port_Binding per logical router port */
 OutProxy_Port_Binding(._uuid              = lrp._uuid,
@@ -259,6 +271,7 @@ OutProxy_Port_Binding(._uuid              = lrp._uuid,
                       .tag                = None, // always empty for router ports
                       .mac                = set_singleton("${lrp.mac} ${lrp.networks.join(\" \")}"),
                       .nat_addresses      = set_empty(),
+                      .router_addresses   = set_empty(),
                       .external_ids       = lrp.external_ids) :-
     rp in &RouterPort(.lrp = lrp, .router = &router, .peer = peer),
     RouterPortRAOptionsComplete(lrp._uuid, options0),
@@ -400,15 +413,15 @@ function get_nat_addresses(rport: RouterPort): Set<string> =
     }
 }
 
-function get_garp_nat_addresses(rport: RouterPort): string = {
-    var garp_info = ["${rport.networks.ea}"];
+function get_router_interface_addresses(rport: RouterPort): string = {
+    var router_info = ["${rport.networks.ea}"];
     for (ipv4_addr in rport.networks.ipv4_addrs) {
-        garp_info.push("${ipv4_addr.addr}")
+        router_info.push("${ipv4_addr.addr}")
     };
     if (rport.router.redirect_port_name != "") {
-        garp_info.push("is_chassis_resident(${rport.router.redirect_port_name})")
+        router_info.push("is_chassis_resident(${rport.router.redirect_port_name})")
     };
-    garp_info.join(" ")
+    router_info.join(" ")
 }
 
 /* Extra options computed for router ports by the logical flow generation code */
@@ -441,6 +454,7 @@ OutProxy_Port_Binding(// lrp._uuid is already in use; generate a new UUID by
                       .tag                = None,  //always empty for router ports
                       .mac                = set_singleton("${lrp.mac} ${lrp.networks.join(\" \")}"),
                       .nat_addresses      = set_empty(),
+                      .router_addresses   = set_empty(),
                       .external_ids       = lrp.external_ids) :-
     DistributedGatewayPort(lrp, lr_uuid),
     LogicalRouterHAChassisGroup(lr_uuid, hacg_uuid),
@@ -478,6 +492,7 @@ sb::Out_Port_Binding(._uuid              = pbinding._uuid,
                     .tag                = pbinding.tag,
                     .mac                = pbinding.mac,
                     .nat_addresses      = pbinding.nat_addresses,
+                    .router_addresses   = pbinding.router_addresses,
                     .external_ids       = pbinding.external_ids,
                     .up                 = Some{up}) :-
     pbinding in OutProxy_Port_Binding(),

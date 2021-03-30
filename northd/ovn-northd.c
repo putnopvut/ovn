@@ -2486,7 +2486,7 @@ get_nat_addresses(const struct ovn_port *op, size_t *n)
 {
     size_t n_nats = 0;
     struct eth_addr mac;
-    if (!op->nbrp || !op->od || !op->od->nbr
+    if (!op || !op->nbrp || !op->od || !op->od->nbr
         || (!op->od->nbr->n_nat && !op->od->nbr->n_load_balancer)
         || !eth_addr_from_string(op->nbrp->mac, &mac)) {
         *n = n_nats;
@@ -2879,6 +2879,132 @@ ovn_update_ipv6_prefix(struct hmap *ports)
 }
 
 static void
+ovn_port_set_garp_addresses(const struct ovn_port *op, const char **nats,
+                            size_t n_nats, const char *router_networks)
+{
+    bool peer_is_gateway = op->peer
+                           && op->peer->od
+                           && op->peer->od->nbr
+                           && smap_get(&op->peer->od->nbr->options,
+                                       "chassis");
+
+    bool peer_has_dist_gw_port = op->peer
+                                 && op->peer->od
+                                 && op->peer->od->l3redirect_port;
+
+    const char *nat_addresses = smap_get(&op->nbsp->options,
+                                         "nat-addresses");
+    size_t n_sources = 0;
+    const char **source = NULL;
+    if (nat_addresses && (peer_is_gateway || peer_has_dist_gw_port)) {
+        if (!strcmp(nat_addresses, "router")) {
+            /* We size this to n_nats + 1 since it can at most include
+             * all NAT addresses plus the router's networks.
+             */
+            source = nats;
+            n_sources = n_nats;
+        /* Only accept manual specification of ethernet address
+         * followed by IPv4 addresses on type "l3gateway" ports. */
+        } else if (peer_is_gateway) {
+            struct lport_addresses laddrs;
+            if (!extract_lsp_addresses(nat_addresses, &laddrs)) {
+                static struct vlog_rate_limit rl =
+                    VLOG_RATE_LIMIT_INIT(1, 1);
+                VLOG_WARN_RL(&rl, "Error extracting nat-addresses.");
+            } else {
+                destroy_lport_addresses(&laddrs);
+                /* Allocate enough space for the nat_addresses plus
+                 * the router networks
+                 */
+                source = &nat_addresses;
+                n_sources = 1;
+            }
+        }
+    }
+
+    size_t n_garps = 0;
+    /* The "garps" array contains the addresses for which
+     * ovn-controller should send GARPs. This is controlled
+     * by the "nat-addresses" option on the logical switch.
+     *
+     * Size the garps array to one more than the number of NAT
+     * sources so that we can fit the NATs and the router
+     * networks.
+     */
+    char **garps = xcalloc(n_sources + 1, sizeof *garps);
+    for (n_garps = 0; n_garps < n_sources; n_garps++) {
+        garps[n_garps] = xstrdup(source[n_garps]);
+    }
+
+    /* Add the router mac and IPv4 addresses to
+     * Port_Binding.nat_addresses so that GARP is sent for these
+     * IPs by the ovn-controller on which the distributed gateway
+     * router port resides if:
+     *
+     * -  op->peer has 'reside-on-redirect-chassis' set and the
+     *    the logical router datapath has distributed router port.
+     *
+     * -  op->peer is distributed gateway router port.
+     *
+     * -  op->peer's router is a gateway router and op has a localnet
+     *    port.
+     *
+     * Note: Port_Binding.nat_addresses column is also used for
+     * sending the GARPs for the router port IPs.
+     * */
+    bool add_router_port_garp = false;
+    if (peer_has_dist_gw_port &&
+        (smap_get_bool(&op->peer->nbrp->options,
+                      "reside-on-redirect-chassis", false) ||
+        op->peer == op->peer->od->l3dgw_port)) {
+        add_router_port_garp = true;
+    } else if (peer_is_gateway && op->od->n_localnet_ports) {
+        add_router_port_garp = true;
+    }
+
+    if (add_router_port_garp) {
+        /* "garps" was allocated with enough space to hold
+         * this address without reallocating.
+         */
+        garps[n_garps] = xstrdup(router_networks);
+        n_garps++;
+    }
+
+    sbrec_port_binding_set_nat_addresses(op->sb,
+                                         (const char **) garps,
+                                         n_garps);
+    for (size_t i = 0; i < n_garps; i++) {
+        free(garps[i]);
+    }
+    free(garps);
+}
+
+static void
+ovn_port_set_router_addresses(const struct ovn_port *op, const char **nats,
+                              size_t n_nats, const char *router_networks)
+{
+    /* The total number of router addresses is the NATs plus the
+     * router networks
+     */
+    size_t n_router_addresses = n_nats + 1;
+    const char **router_addresses = xcalloc(n_router_addresses,
+                                      sizeof *router_addresses);
+
+    for (size_t i = 0; i < n_nats; i++) {
+        router_addresses[i] = nats[i];
+    }
+    router_addresses[n_nats] = router_networks;
+
+    /* All NAT addresses + the router address need to be added
+     * to the port binding's router_addresses field, even if they
+     * have not been configured on the switch port.
+     */
+    sbrec_port_binding_set_router_addresses(
+        op->sb, (const char **) router_addresses, n_router_addresses);
+    free(router_addresses);
+}
+
+static void
 ovn_port_update_sbrec(struct northd_context *ctx,
                       struct ovsdb_idl_index *sbrec_chassis_by_name,
                       const struct ovn_port *op,
@@ -3050,9 +3176,14 @@ ovn_port_update_sbrec(struct northd_context *ctx,
                 chassis = smap_get(&op->peer->od->nbr->options, "chassis");
             }
 
+            bool peer_is_gateway = !!chassis;
+            bool peer_has_dist_gw_port = op->peer
+                                         && op->peer->od
+                                         && op->peer->od->l3redirect_port;
+
             /* A switch port connected to a gateway router is also of
              * type "l3gateway". */
-            if (chassis) {
+            if (peer_is_gateway) {
                 sbrec_port_binding_set_type(op->sb, "l3gateway");
             } else {
                 sbrec_port_binding_set_type(op->sb, "patch");
@@ -3060,7 +3191,7 @@ ovn_port_update_sbrec(struct northd_context *ctx,
 
             const char *router_port = smap_get(&op->nbsp->options,
                                                "router-port");
-            if (router_port || chassis) {
+            if (router_port || peer_is_gateway) {
                 struct smap new;
                 smap_init(&new);
                 if (router_port) {
@@ -3075,84 +3206,35 @@ ovn_port_update_sbrec(struct northd_context *ctx,
                 sbrec_port_binding_set_options(op->sb, NULL);
             }
 
-            const char *nat_addresses = smap_get(&op->nbsp->options,
-                                           "nat-addresses");
-            size_t n_nats = 0;
-            char **nats = NULL;
-            if (nat_addresses && !strcmp(nat_addresses, "router")) {
-                if (op->peer && op->peer->od
-                    && (chassis || op->peer->od->l3redirect_port)) {
-                    nats = get_nat_addresses(op->peer, &n_nats);
-                }
-            /* Only accept manual specification of ethernet address
-             * followed by IPv4 addresses on type "l3gateway" ports. */
-            } else if (nat_addresses && chassis) {
-                struct lport_addresses laddrs;
-                if (!extract_lsp_addresses(nat_addresses, &laddrs)) {
-                    static struct vlog_rate_limit rl =
-                        VLOG_RATE_LIMIT_INIT(1, 1);
-                    VLOG_WARN_RL(&rl, "Error extracting nat-addresses.");
-                } else {
-                    destroy_lport_addresses(&laddrs);
-                    n_nats = 1;
-                    nats = xcalloc(1, sizeof *nats);
-                    nats[0] = xstrdup(nat_addresses);
-                }
-            }
+            size_t n_nats;
+            char **nats;
+            nats = get_nat_addresses(op->peer, &n_nats);
 
-            /* Add the router mac and IPv4 addresses to
-             * Port_Binding.nat_addresses so that GARP is sent for these
-             * IPs by the ovn-controller on which the distributed gateway
-             * router port resides if:
-             *
-             * -  op->peer has 'reside-on-redirect-chassis' set and the
-             *    the logical router datapath has distributed router port.
-             *
-             * -  op->peer is distributed gateway router port.
-             *
-             * -  op->peer's router is a gateway router and op has a localnet
-             *    port.
-             *
-             * Note: Port_Binding.nat_addresses column is also used for
-             * sending the GARPs for the router port IPs.
-             * */
-            bool add_router_port_garp = false;
-            if (op->peer && op->peer->nbrp && op->peer->od->l3dgw_port &&
-                op->peer->od->l3redirect_port &&
-                (smap_get_bool(&op->peer->nbrp->options,
-                              "reside-on-redirect-chassis", false) ||
-                op->peer == op->peer->od->l3dgw_port)) {
-                add_router_port_garp = true;
-            } else if (chassis && op->od->n_localnet_ports) {
-                add_router_port_garp = true;
-            }
-
-            if (add_router_port_garp) {
-                struct ds garp_info = DS_EMPTY_INITIALIZER;
-                ds_put_format(&garp_info, "%s", op->peer->lrp_networks.ea_s);
+            struct ds router_networks = DS_EMPTY_INITIALIZER;
+            if (op->peer) {
+                ds_put_format(&router_networks, "%s", op->peer->lrp_networks.ea_s);
                 for (size_t i = 0; i < op->peer->lrp_networks.n_ipv4_addrs;
                      i++) {
-                    ds_put_format(&garp_info, " %s",
+                    ds_put_format(&router_networks, " %s",
                                   op->peer->lrp_networks.ipv4_addrs[i].addr_s);
-                }
 
-                if (op->peer->od->l3redirect_port) {
-                    ds_put_format(&garp_info, " is_chassis_resident(%s)",
-                                  op->peer->od->l3redirect_port->json_key);
+                    if (peer_has_dist_gw_port) {
+                        ds_put_format(&router_networks, " is_chassis_resident(%s)",
+                                      op->peer->od->l3redirect_port->json_key);
+                    }
                 }
-
-                n_nats++;
-                nats = xrealloc(nats, (n_nats * sizeof *nats));
-                nats[n_nats - 1] = ds_steal_cstr(&garp_info);
-                ds_destroy(&garp_info);
             }
+            ovn_port_set_garp_addresses(op, (const char **) nats, n_nats,
+                                        ds_cstr(&router_networks));
 
-            sbrec_port_binding_set_nat_addresses(op->sb,
-                                                 (const char **) nats, n_nats);
+            ovn_port_set_router_addresses(op, (const char **) nats, n_nats,
+                                          ds_cstr(&router_networks));
+
             for (size_t i = 0; i < n_nats; i++) {
                 free(nats[i]);
             }
             free(nats);
+            ds_destroy(&router_networks);
         }
 
         sbrec_port_binding_set_parent_port(op->sb, op->nbsp->parent_name);
@@ -14119,6 +14201,8 @@ main(int argc, char *argv[])
     add_column_noalert(ovnsb_idl_loop.idl, &sbrec_port_binding_col_mac);
     add_column_noalert(ovnsb_idl_loop.idl,
                        &sbrec_port_binding_col_nat_addresses);
+    add_column_noalert(ovnsb_idl_loop.idl,
+                       &sbrec_port_binding_col_router_addresses);
     ovsdb_idl_add_column(ovnsb_idl_loop.idl, &sbrec_port_binding_col_chassis);
     ovsdb_idl_add_column(ovnsb_idl_loop.idl,
                          &sbrec_port_binding_col_gateway_chassis);

@@ -2994,6 +2994,16 @@ tcp.flags = RST;
         158.36.44.24 with a MAC address of 80:fa:5b:06:72:b7 from the chassis
         where the logical port "foo1" resides.
       </column>
+
+      <column name="router_addresses">
+        This is an exhaustive list of all NAT, load balancer, and interface
+        addresses of the connected router port. The format of the entries is
+        the same as the <ref column="nat_addresses"/> column. Whereas the
+        <ref column="nat_addresses"/> column is used to determine the addresses
+        for which ovn-controller will send gratuitous ARPs, the addresses in
+        this column are used to pre-set <ref table="MAC_Binding"/>s to avoid
+        the need for sending unnecessary ARPs.
+      </column>
     </group>
 
     <group title="L3 Gateway Options">
@@ -3023,6 +3033,16 @@ tcp.flags = RST;
         This would result in generation of gratuitous ARPs for IP addresses
         158.36.44.22 and 158.36.44.24 with a MAC address of 80:fa:5b:06:72:b7.
         This is used in OVS version 2.8 and later versions.
+      </column>
+
+      <column name="router_addresses">
+        This is an exhaustive list of all NAT, load balancer, and interface
+        addresses of the connected router port. The format of the entries is
+        the same as the <ref column="nat_addresses"/> column. Whereas the
+        <ref column="nat_addresses"/> column is used to determine the addresses
+        for which ovn-controller will send gratuitous ARPs, the addresses in
+        this column are used to pre-set <ref table="MAC_Binding"/>s to avoid
+        the need for sending unnecessary ARPs.
       </column>
     </group>
 
