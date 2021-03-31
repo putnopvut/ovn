@@ -549,3 +549,182 @@ done
 
 OVN_CLEANUP([hv1])
 AT_CLEANUP
+
+OVN_FOR_EACH_NORTHD([
+AT_SETUP([ovn -- MAC bindings from router addresses])
+ovn_start
+
+net_add n1
+for i in 1 2; do
+    sim_add hv$i
+    as hv$i
+    ovs-vsctl add-br br-phys
+    ovn_attach n1 br-phys 192.168.$i.1
+done
+
+AS_BOX([Setting up the logical network])
+# This test ties in heavily with the ovn-northd "Router Address
+# Propagation" test. That test ensures that Port_Binding
+# router_addresses are filled in as expected based on the logical
+# network configuration.
+#
+# This test focuses on ensuring that router_addresses get
+# converted to the expected MAC_Bindings, specifically with regards
+# to ensuring they are created based on is_chassis_resident
+# restrictions. Therefore, it is not necessary to ensure that an
+# exhaustive set of logical network configurations is attempted for
+# this test.
+
+check ovn-nbctl ls-add sw
+
+check ovn-nbctl lr-add ro1
+check ovn-nbctl lrp-add ro1 ro1-sw 00:00:00:00:00:01 10.0.0.1/24
+check ovn-nbctl lsp-add sw sw-ro1
+
+check ovn-nbctl lr-add ro2
+check ovn-nbctl lrp-add ro2 ro2-sw 00:00:00:00:00:02 20.0.0.1/24
+check ovn-nbctl --wait=sb lsp-add sw sw-ro2
+
+check ovn-nbctl ls-add ls1
+check ovn-nbctl lsp-add ls1 vm1
+check ovn-nbctl lsp-set-addresses vm1 "00:00:00:00:01:02 172.16.1.2"
+check ovn-nbctl lrp-add ro1 ro1-ls1 00:00:00:00:01:01 172.16.1.1/24
+check ovn-nbctl lsp-add ls1 ls1-ro1
+check ovn-nbctl lsp-set-type ls1-ro1 router
+check ovn-nbctl lsp-set-addresses ls1-ro1 router
+check ovn-nbctl lsp-set-options ls1-ro1 router-port=ro1-ls1
+
+check ovn-nbctl ls-add ls2
+check ovn-nbctl lsp-add ls2 vm2
+check ovn-nbctl lsp-set-addresses vm2 "00:00:00:00:02:02 172.16.2.2"
+check ovn-nbctl lrp-add ro2 ro2-ls2 00:00:00:00:02:01 172.16.2.1/24
+check ovn-nbctl lsp-add ls2 ls2-ro2
+check ovn-nbctl lsp-set-type ls2-ro2 router
+check ovn-nbctl lsp-set-addresses ls2-ro2 router
+check ovn-nbctl --wait=hv lsp-set-options ls2-ro2 router-port=ro2-ls2
+
+as hv1
+check ovs-vsctl add-port br-int vm1 -- set Interface vm1 external_ids:iface-id=vm1
+as hv2
+check ovs-vsctl add-port br-int vm2 -- set Interface vm2 external_ids:iface-id=vm2
+
+AS_BOX([Checking that no router addresses results in no chassis-specific MAC Bindings])
+
+check_row_count MAC_Binding 0 chassis_name=hv1
+check_row_count MAC_Binding 0 chassis_name=hv2
+
+AS_BOX([Checking that connecting routers results in no chassis-specific MAC Bindings])
+
+check ovn-nbctl lsp-set-type sw-ro1 router
+check ovn-nbctl lsp-set-addresses sw-ro1 router
+check ovn-nbctl lsp-set-options sw-ro1 router-port=ro1-sw
+
+check ovn-nbctl lsp-set-type sw-ro2 router
+check ovn-nbctl lsp-set-addresses sw-ro2 router
+check ovn-nbctl --wait=hv lsp-set-options sw-ro2 router-port=ro2-sw
+
+check_row_count MAC_Binding 0 chassis_name=hv1
+check_row_count MAC_Binding 0 chassis_name=hv2
+
+AS_BOX([Checking that l3dgw routers have chassis-specific MAC Bindings])
+
+check ovn-nbctl lrp-set-gateway-chassis ro1-sw hv1 100
+check ovn-nbctl --wait=hv lrp-set-gateway-chassis ro2-sw hv2 100
+
+check_row_count MAC_Binding 1 chassis_name=hv1
+check_row_count MAC_Binding 1 chassis_name=hv2
+
+check_column "10.0.0.1" MAC_Binding ip chassis_name=hv1
+check_column "00:00:00:00:00:01" MAC_Binding mac chassis_name=hv1
+check_column "ro2-sw" MAC_Binding logical_port chassis_name=hv1
+
+check_column "20.0.0.1" MAC_Binding ip chassis_name=hv2
+check_column "00:00:00:00:00:02" MAC_Binding mac chassis_name=hv2
+check_column "ro1-sw" MAC_Binding logical_port chassis_name=hv2
+
+AS_BOX([Checking that NAT addresses result in chassis-specific MAC Bindings])
+
+check ovn-nbctl lr-nat-add ro1 dnat 10.0.0.100 172.16.1.100
+check ovn-nbctl --wait=hv lr-nat-add ro1 snat 10.0.0.200 172.16.1.200/30
+
+# hv1 installs MAC bindings for the ro1's router address and two NAT addresses
+check_row_count MAC_Binding 3 chassis_name=hv1
+# hv2 only installs MAC bindings for ro2's router address
+check_row_count MAC_Binding 1 chassis_name=hv2
+
+check_column "10.0.0.1 10.0.0.100 10.0.0.200" MAC_Binding ip chassis_name=hv1
+check_column "00:00:00:00:00:01 00:00:00:00:00:01 00:00:00:00:00:01" MAC_Binding mac chassis_name=hv1
+check_column "ro2-sw ro2-sw ro2-sw" MAC_Binding logical_port chassis_name=hv1
+
+check_column "20.0.0.1" MAC_Binding ip chassis_name=hv2
+check_column "00:00:00:00:00:02" MAC_Binding mac chassis_name=hv2
+check_column "ro1-sw" MAC_Binding logical_port chassis_name=hv2
+
+AS_BOX([Checking that changing which router has NAT addresses results in correct MAC Bindings])
+
+check ovn-nbctl lr-nat-del ro1
+
+check ovn-nbctl lr-nat-add ro2 dnat 20.0.0.100 172.16.2.100
+check ovn-nbctl --wait=hv lr-nat-add ro2 snat 20.0.0.200 172.16.2.200/30
+
+# hv1 installs MAC bindings for ro1's router address
+check_row_count MAC_Binding 1 chassis_name=hv1
+# hv2 installs MAC bindings for ro2's router address and two NAT addresses
+check_row_count MAC_Binding 3 chassis_name=hv2
+
+check_column "10.0.0.1" MAC_Binding ip chassis_name=hv1
+check_column "00:00:00:00:00:01" MAC_Binding mac chassis_name=hv1
+check_column "ro2-sw" MAC_Binding logical_port chassis_name=hv1
+
+check_column "20.0.0.1 20.0.0.100 20.0.0.200" MAC_Binding ip chassis_name=hv2
+check_column "00:00:00:00:00:02 00:00:00:00:00:02 00:00:00:00:00:02" MAC_Binding mac chassis_name=hv2
+check_column "ro1-sw ro1-sw ro1-sw" MAC_Binding logical_port chassis_name=hv2
+
+AS_BOX([Checking that Floating IP NAT address configured on router results in MAC Binding])
+
+check ovn-nbctl lr-nat-del ro2
+
+check ovn-nbctl --wait=hv lr-nat-add ro1 dnat_and_snat 10.0.0.100 172.16.1.100 vm1 00:00:00:00:00:01
+
+# HV1 will have MAC bindings for the router address and the Floating IP NAT since vm1 is bound on hv1
+check_row_count MAC_Binding 2 chassis_name=hv1
+check_row_count MAC_Binding 1 chassis_name=hv2
+
+check_column "10.0.0.1 10.0.0.100" MAC_Binding ip chassis_name=hv1
+check_column "00:00:00:00:00:01 00:00:00:00:00:01" MAC_Binding mac chassis_name=hv1
+check_column "ro2-sw ro2-sw" MAC_Binding logical_port chassis_name=hv1
+
+check_column "20.0.0.1" MAC_Binding ip chassis_name=hv2
+check_column "00:00:00:00:00:02" MAC_Binding mac chassis_name=hv2
+check_column "ro1-sw" MAC_Binding logical_port chassis_name=hv2
+
+AS_BOX([Checking that un-binding vm results in removal of Floating IP MAC Binding])
+
+as hv1
+check ovs-vsctl del-port br-int vm1
+
+# This will be exactly as if no NATs were configured.
+# Use wait_row_count instead of check_row_count here since
+# we don't have an equivalent to --wait=hv in ovs-vsctl.
+wait_row_count MAC_Binding 1 chassis_name=hv1
+check_row_count MAC_Binding 1 chassis_name=hv2
+
+check_column "10.0.0.1" MAC_Binding ip chassis_name=hv1
+check_column "00:00:00:00:00:01" MAC_Binding mac chassis_name=hv1
+check_column "ro2-sw" MAC_Binding logical_port chassis_name=hv1
+
+check_column "20.0.0.1" MAC_Binding ip chassis_name=hv2
+check_column "00:00:00:00:00:02" MAC_Binding mac chassis_name=hv2
+check_column "ro1-sw" MAC_Binding logical_port chassis_name=hv2
+
+AS_BOX([Ensure that disconnecting routers results in removal of all MAC Bindings])
+
+check ovn-nbctl clear logical_switch_port sw-ro1 options
+check ovn-nbctl --wait=hv clear logical_switch_port sw-ro2 options
+
+check_row_count MAC_Binding 0 chassis_name=hv1
+check_row_count MAC_Binding 0 chassis_name=hv2
+
+OVN_CLEANUP([hv1],[hv2])
+AT_CLEANUP
+])

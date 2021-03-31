@@ -955,7 +955,8 @@ sb::Out_MAC_Binding (._uuid        = mb._uuid,
                     .logical_port = mb.logical_port,
                     .ip           = mb.ip,
                     .mac          = mb.mac,
-                    .datapath     = mb.datapath) :-
+                    .datapath     = mb.datapath,
+                    .chassis_name = mb.chassis_name) :-
     sb::MAC_Binding[mb],
     sb::Out_Port_Binding(.logical_port = mb.logical_port),
     sb::Out_Datapath_Binding(._uuid = mb.datapath).
@@ -1312,7 +1313,7 @@ sb::Out_RBAC_Permission (
     .table          = "MAC_Binding",
     .authorization  = set_singleton(""),
     .insert_delete  = true,
-    .update         = ["logical_port", "ip", "mac", "datapath"].to_set()
+    .update         = ["logical_port", "ip", "mac", "datapath", "chassis_name"].to_set()
 ).
 
 sb::Out_RBAC_Permission (

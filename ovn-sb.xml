@@ -3345,6 +3345,13 @@ tcp.flags = RST;
     <column name="datapath">
       The logical datapath to which the logical port belongs.
     </column>
+    <column name="chassis_name">
+      This column indicates the chassis on which the binding was added. This
+      column is only filled in when ovn-controller generates the MAC binding
+      internally. MAC bindings learned due to ARP requests will not have this
+      column set. This is used internally by ovn-controller to ensure that
+      defunct bindings are removed.
+    </column>
   </table>
 
   <table name="DHCP_Options" title="DHCP Options supported by native OVN DHCP">

@@ -2507,6 +2507,9 @@ main(int argc, char *argv[])
         = ovsdb_idl_index_create2(ovnsb_idl_loop.idl,
                                   &sbrec_fdb_col_mac,
                                   &sbrec_fdb_col_dp_key);
+    struct ovsdb_idl_index *sbrec_mac_binding_by_chassis
+        = ovsdb_idl_index_create1(ovnsb_idl_loop.idl,
+                                  &sbrec_mac_binding_col_chassis_name);
 
     ovsdb_idl_track_add_all(ovnsb_idl_loop.idl);
     ovsdb_idl_omit_alert(ovnsb_idl_loop.idl,
@@ -2931,6 +2934,7 @@ main(int argc, char *argv[])
                                     sbrec_port_binding_by_key,
                                     sbrec_port_binding_by_name,
                                     sbrec_mac_binding_by_lport_ip,
+                                    sbrec_mac_binding_by_chassis,
                                     sbrec_igmp_group,
                                     sbrec_ip_multicast,
                                     sbrec_fdb_by_dp_key_mac,
