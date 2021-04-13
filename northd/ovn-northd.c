@@ -6480,44 +6480,51 @@ build_lswitch_rport_arp_req_self_orig_flow(struct ovn_port *op,
     ds_destroy(&match);
 }
 
-/*
- * Ingress table 19: Flows that forward ARP/ND requests only to the routers
- * that own the addresses. Other ARP/ND packets are still flooded in the
- * switching domain as regular broadcast.
- */
 static void
-build_lswitch_rport_arp_req_flow_for_ip(struct sset *ips,
-                                        int addr_family,
-                                        struct ovn_port *patch_op,
-                                        struct ovn_datapath *od,
-                                        uint32_t priority,
-                                        struct hmap *lflows,
-                                        const struct ovsdb_idl_row *stage_hint)
+arp_nd_ns_match(struct sset *ips, int addr_family, struct ds *match)
 {
-    struct ds match   = DS_EMPTY_INITIALIZER;
-    struct ds actions = DS_EMPTY_INITIALIZER;
 
     /* Packets received from VXLAN tunnels have already been through the
      * router pipeline so we should skip them. Normally this is done by the
      * multicast_group implementation (VXLAN packets skip table 32 which
      * delivers to patch ports) but we're bypassing multicast_groups.
      */
-    ds_put_cstr(&match, FLAGBIT_NOT_VXLAN " && ");
+    ds_put_cstr(match, FLAGBIT_NOT_VXLAN " && ");
 
     if (addr_family == AF_INET) {
-        ds_put_cstr(&match, "arp.op == 1 && arp.tpa == { ");
+        ds_put_cstr(match, "arp.op == 1 && arp.tpa == { ");
     } else {
-        ds_put_cstr(&match, "nd_ns && nd.target == { ");
+        ds_put_cstr(match, "nd_ns && nd.target == { ");
     }
 
     const char *ip_address;
     SSET_FOR_EACH (ip_address, ips) {
-        ds_put_format(&match, "%s, ", ip_address);
+        ds_put_format(match, "%s, ", ip_address);
     }
 
-    ds_chomp(&match, ' ');
-    ds_chomp(&match, ',');
-    ds_put_cstr(&match, "}");
+    ds_chomp(match, ' ');
+    ds_chomp(match, ',');
+    ds_put_cstr(match, "}");
+}
+
+/*
+ * Ingress table 19: Flows that forward ARP/ND requests only to the routers
+ * that own the addresses. Other ARP/ND packets are still flooded in the
+ * switching domain as regular broadcast.
+ */
+static void
+build_lswitch_rport_arp_req_flow_for_reachable_ip(struct sset *ips,
+                                                  int addr_family,
+                                                  struct ovn_port *patch_op,
+                                                  struct ovn_datapath *od,
+                                                  uint32_t priority,
+                                                  struct hmap *lflows,
+                                                  const struct ovsdb_idl_row *stage_hint)
+{
+    struct ds match   = DS_EMPTY_INITIALIZER;
+    struct ds actions = DS_EMPTY_INITIALIZER;
+
+    arp_nd_ns_match(ips, addr_family, &match);
 
     /* Send a the packet to the router pipeline.  If the switch has non-router
      * ports then flood it there as well.
@@ -6538,6 +6545,32 @@ build_lswitch_rport_arp_req_flow_for_ip(struct sset *ips,
 
     ds_destroy(&match);
     ds_destroy(&actions);
+}
+
+/*
+ * Ingress table 19: Flows that forward ARP/ND requests for "unreachable" IPs
+ * (NAT or load balancer IPs configured on a router that are outside the router's
+ * configured subnets).
+ * These ARP/ND packets are flooded in the switching domain as regular broadcast.
+ */
+static void
+build_lswitch_rport_arp_req_flow_for_unreachable_ip(struct sset *ips,
+                                                    int addr_family,
+                                                    struct ovn_datapath *od,
+                                                    uint32_t priority,
+                                                    struct hmap *lflows,
+                                                    const struct ovsdb_idl_row *stage_hint)
+{
+    struct ds match = DS_EMPTY_INITIALIZER;
+
+    arp_nd_ns_match(ips, addr_family, &match);
+
+    ovn_lflow_add_unique_with_hint(lflows, od, S_SWITCH_IN_L2_LKUP,
+                                   priority, ds_cstr(&match),
+                                   "outport = \""MC_FLOOD"\"; output;",
+                                   stage_hint);
+
+    ds_destroy(&match);
 }
 
 /*
@@ -6566,39 +6599,48 @@ build_lswitch_rport_arp_req_flows(struct ovn_port *op,
      * router port.
      * Priority: 80.
      */
-    struct sset all_ips_v4 = SSET_INITIALIZER(&all_ips_v4);
-    struct sset all_ips_v6 = SSET_INITIALIZER(&all_ips_v6);
+    struct sset lb_ips_v4 = SSET_INITIALIZER(&lb_ips_v4);
+    struct sset lb_ips_v6 = SSET_INITIALIZER(&lb_ips_v6);
 
-    get_router_load_balancer_ips(op->od, &all_ips_v4, &all_ips_v6);
+    get_router_load_balancer_ips(op->od, &lb_ips_v4, &lb_ips_v6);
+
+    struct sset reachable_ips_v4 = SSET_INITIALIZER(&reachable_ips_v4);
+    struct sset reachable_ips_v6 = SSET_INITIALIZER(&reachable_ips_v6);
+    struct sset unreachable_ips_v4 = SSET_INITIALIZER(&unreachable_ips_v4);
+    struct sset unreachable_ips_v6 = SSET_INITIALIZER(&unreachable_ips_v6);
 
     const char *ip_addr;
     const char *ip_addr_next;
-    SSET_FOR_EACH_SAFE (ip_addr, ip_addr_next, &all_ips_v4) {
+    SSET_FOR_EACH_SAFE (ip_addr, ip_addr_next, &lb_ips_v4) {
         ovs_be32 ipv4_addr;
 
         /* Check if the ovn port has a network configured on which we could
          * expect ARP requests for the LB VIP.
          */
-        if (ip_parse(ip_addr, &ipv4_addr) &&
-                lrouter_port_ipv4_reachable(op, ipv4_addr)) {
-            continue;
+        if (ip_parse(ip_addr, &ipv4_addr)) {
+            if (lrouter_port_ipv4_reachable(op, ipv4_addr)) {
+                sset_add(&reachable_ips_v4, ip_addr);
+            } else {
+                sset_add(&unreachable_ips_v4, ip_addr);
+            }
         }
-
-        sset_delete(&all_ips_v4, SSET_NODE_FROM_NAME(ip_addr));
     }
-    SSET_FOR_EACH_SAFE (ip_addr, ip_addr_next, &all_ips_v6) {
+    SSET_FOR_EACH_SAFE (ip_addr, ip_addr_next, &lb_ips_v6) {
         struct in6_addr ipv6_addr;
 
         /* Check if the ovn port has a network configured on which we could
          * expect NS requests for the LB VIP.
          */
-        if (ipv6_parse(ip_addr, &ipv6_addr) &&
-                lrouter_port_ipv6_reachable(op, &ipv6_addr)) {
-            continue;
+        if (ipv6_parse(ip_addr, &ipv6_addr)) {
+            if (lrouter_port_ipv6_reachable(op, &ipv6_addr)) {
+                sset_add(&reachable_ips_v6, ip_addr);
+            } else {
+                sset_add(&unreachable_ips_v6, ip_addr);
+            }
         }
-
-        sset_delete(&all_ips_v6, SSET_NODE_FROM_NAME(ip_addr));
     }
+    sset_destroy(&lb_ips_v4);
+    sset_destroy(&lb_ips_v6);
 
     for (size_t i = 0; i < op->od->nbr->n_nat; i++) {
         struct ovn_nat *nat_entry = &op->od->nat_entries[i];
@@ -6619,37 +6661,53 @@ build_lswitch_rport_arp_req_flows(struct ovn_port *op,
             struct in6_addr *addr = &nat_entry->ext_addrs.ipv6_addrs[0].addr;
 
             if (lrouter_port_ipv6_reachable(op, addr)) {
-                sset_add(&all_ips_v6, nat->external_ip);
+                sset_add(&reachable_ips_v6, nat->external_ip);
+            } else {
+                sset_add(&unreachable_ips_v6, nat->external_ip);
             }
         } else {
             ovs_be32 addr = nat_entry->ext_addrs.ipv4_addrs[0].addr;
 
             if (lrouter_port_ipv4_reachable(op, addr)) {
-                sset_add(&all_ips_v4, nat->external_ip);
+                sset_add(&reachable_ips_v4, nat->external_ip);
+            } else {
+                sset_add(&unreachable_ips_v4, nat->external_ip);
             }
         }
     }
 
     for (size_t i = 0; i < op->lrp_networks.n_ipv4_addrs; i++) {
-        sset_add(&all_ips_v4, op->lrp_networks.ipv4_addrs[i].addr_s);
+        sset_add(&reachable_ips_v4, op->lrp_networks.ipv4_addrs[i].addr_s);
     }
     for (size_t i = 0; i < op->lrp_networks.n_ipv6_addrs; i++) {
-        sset_add(&all_ips_v6, op->lrp_networks.ipv6_addrs[i].addr_s);
+        sset_add(&reachable_ips_v6, op->lrp_networks.ipv6_addrs[i].addr_s);
     }
 
-    if (!sset_is_empty(&all_ips_v4)) {
-        build_lswitch_rport_arp_req_flow_for_ip(&all_ips_v4, AF_INET, sw_op,
-                                                sw_od, 80, lflows,
-                                                stage_hint);
+    if (!sset_is_empty(&reachable_ips_v4)) {
+        build_lswitch_rport_arp_req_flow_for_reachable_ip(&reachable_ips_v4, AF_INET, sw_op,
+                                                          sw_od, 80, lflows,
+                                                          stage_hint);
     }
-    if (!sset_is_empty(&all_ips_v6)) {
-        build_lswitch_rport_arp_req_flow_for_ip(&all_ips_v6, AF_INET6, sw_op,
-                                                sw_od, 80, lflows,
-                                                stage_hint);
+    if (!sset_is_empty(&reachable_ips_v6)) {
+        build_lswitch_rport_arp_req_flow_for_reachable_ip(&reachable_ips_v6, AF_INET6, sw_op,
+                                                          sw_od, 80, lflows,
+                                                          stage_hint);
+    }
+    if (!sset_is_empty(&unreachable_ips_v4)) {
+        build_lswitch_rport_arp_req_flow_for_unreachable_ip(&unreachable_ips_v4, AF_INET,
+                                                            sw_od, 90, lflows,
+                                                            stage_hint);
+    }
+    if (!sset_is_empty(&unreachable_ips_v6)) {
+        build_lswitch_rport_arp_req_flow_for_unreachable_ip(&unreachable_ips_v6, AF_INET6,
+                                                            sw_od, 90, lflows,
+                                                            stage_hint);
     }
 
-    sset_destroy(&all_ips_v4);
-    sset_destroy(&all_ips_v6);
+    sset_destroy(&reachable_ips_v4);
+    sset_destroy(&reachable_ips_v6);
+    sset_destroy(&unreachable_ips_v4);
+    sset_destroy(&unreachable_ips_v6);
 
     /* Self originated ARP requests/ND need to be flooded as usual.
      *
