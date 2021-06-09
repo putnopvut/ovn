@@ -3894,6 +3894,10 @@ prepare_ipv6_ras(const struct hmap *local_datapaths)
     const struct local_datapath *ld;
     HMAP_FOR_EACH (ld, hmap_node, local_datapaths) {
 
+        if (datapath_is_switch(ld) || !ld->has_periodic_ras) {
+            continue;
+        }
+
         for (size_t i = 0; i < ld->n_peer_ports; i++) {
             const struct sbrec_port_binding *peer = ld->peer_ports[i].remote;
             const struct sbrec_port_binding *pb = ld->peer_ports[i].local;

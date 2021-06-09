@@ -169,6 +169,10 @@ add_local_datapath__(struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
                                        &ld->n_allocated_peer_ports,
                                        sizeof *ld->peer_ports);
                     }
+                    if (!ld->has_periodic_ras &&
+                        smap_get_bool(&pb->options, "ipv6_ra_send_periodic", false)) {
+                        ld->has_periodic_ras = true;
+                    }
                     ld->peer_ports[ld->n_peer_ports - 1].local = pb;
                     ld->peer_ports[ld->n_peer_ports - 1].remote = peer;
                 }
