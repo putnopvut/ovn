@@ -1258,7 +1258,7 @@ prepare_ipv6_prefixd(struct ovsdb_idl_txn *ovnsb_idl_txn,
     bool changed = false;
 
     HMAP_FOR_EACH (ld, hmap_node, local_datapaths) {
-        if (datapath_is_switch(ld->datapath)) {
+        if (datapath_is_switch(ld)) {
             /* logical switch */
             continue;
         }
@@ -4222,7 +4222,7 @@ run_buffered_binding(struct ovsdb_idl_index *sbrec_mac_binding_by_lport_ip,
          * a router datapath. Hence we can skip logical switch
          * datapaths.
          * */
-        if (datapath_is_switch(ld->datapath)) {
+        if (datapath_is_switch(ld)) {
             continue;
         }
 

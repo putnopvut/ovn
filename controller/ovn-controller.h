@@ -67,6 +67,8 @@ struct local_datapath {
 
     size_t n_peer_ports;
     size_t n_allocated_peer_ports;
+    /* True if this datapath represents a logical switch. */
+    bool is_switch;
 };
 
 struct local_datapath *get_local_datapath(const struct hmap *,

@@ -29,6 +29,7 @@
 #include "socket-util.h"
 #include "svec.h"
 #include "unixctl.h"
+#include "controller/ovn-controller.h"
 
 VLOG_DEFINE_THIS_MODULE(ovn_util);
 
@@ -553,9 +554,9 @@ ovn_logical_flow_hash_datapath(const struct uuid *logical_datapath,
 }
 
 bool
-datapath_is_switch(const struct sbrec_datapath_binding *ldp)
+datapath_is_switch(const struct local_datapath *ldp)
 {
-    return smap_get(&ldp->external_ids, "logical-switch") != NULL;
+    return ldp->is_switch;
 }
 
 int

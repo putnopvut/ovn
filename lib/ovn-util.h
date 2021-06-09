@@ -108,7 +108,8 @@ uint32_t ovn_logical_flow_hash(uint8_t table_id, const char *pipeline,
                                const char *match, const char *actions);
 uint32_t ovn_logical_flow_hash_datapath(const struct uuid *logical_datapath,
                                         uint32_t hash);
-bool datapath_is_switch(const struct sbrec_datapath_binding *);
+struct local_datapath;
+bool datapath_is_switch(const struct local_datapath *);
 int datapath_snat_ct_zone(const struct sbrec_datapath_binding *ldp);
 void ovn_conn_show(struct unixctl_conn *conn, int argc OVS_UNUSED,
                    const char *argv[] OVS_UNUSED, void *idl_);

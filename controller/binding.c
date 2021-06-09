@@ -109,6 +109,7 @@ add_local_datapath__(struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
     ld->datapath = datapath;
     ld->localnet_port = NULL;
     ld->has_local_l3gateway = has_local_l3gateway;
+    ld->is_switch = smap_get(&datapath->external_ids, "logical_switch") != NULL;
 
     if (tracked_datapaths) {
         struct tracked_binding_datapath *tdp =
