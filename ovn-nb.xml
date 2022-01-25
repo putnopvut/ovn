@@ -2061,6 +2061,16 @@
             separately, set the <ref column="fair" table="meter"/> column.
         </p>
       </column>
+
+      <column name="log_related">
+        <p>
+            If set to <code>true</code>, then log when reply or related
+            traffic is admitted from a stateful ACL. In order for this
+            option to function, the <ref column="log"/> option must be
+            set to <code>true</code> and a <ref column="label"/> must
+            be set.
+        </p>
+      </column>
     </group>
 
     <group title="Common Columns">

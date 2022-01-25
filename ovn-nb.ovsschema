@@ -1,7 +1,7 @@
 {
     "name": "OVN_Northbound",
-    "version": "5.34.1",
-    "cksum": "2177334725 30782",
+    "version": "5.35.0",
+    "cksum": "2223177829 30834",
     "tables": {
         "NB_Global": {
             "columns": {
@@ -258,6 +258,7 @@
                                                         "notice", "info",
                                                         "debug"]]},
                                       "min": 0, "max": 1}},
+                "log_related": {"type": "boolean"},
                 "meter": {"type": {"key": "string", "min": 0, "max": 1}},
                 "label": {"type": {"key": {"type": "integer",
                                            "minInteger": 0,
