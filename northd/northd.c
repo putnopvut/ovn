@@ -12961,23 +12961,44 @@ build_lrouter_out_snat_flow(struct hmap *lflows, struct ovn_datapath *od,
                                 priority, ds_cstr(match),
                                 ds_cstr(actions), &nat->header_);
 
-        if (!stateless) {
-            ds_put_cstr(match, " && "REGBIT_DST_NAT_IP_LOCAL" == 1");
-            ds_clear(actions);
-            if (distributed) {
-                ds_put_format(actions, "eth.src = "ETH_ADDR_FMT"; ",
-                              ETH_ADDR_ARGS(mac));
-            }
-            ds_put_format(actions,  REGBIT_DST_NAT_IP_LOCAL" = 0; ct_snat(%s",
-                          nat->external_ip);
-            if (nat->external_port_range[0]) {
-                ds_put_format(actions, ",%s", nat->external_port_range);
-            }
-            ds_put_format(actions, ");");
-            ovn_lflow_add_with_hint(lflows, od, S_ROUTER_OUT_SNAT,
-                                    priority + 1, ds_cstr(match),
-                                    ds_cstr(actions), &nat->header_);
+        if (stateless) {
+            return;
         }
+
+        struct ds match_natted = DS_EMPTY_INITIALIZER;
+        struct ds actions_natted = DS_EMPTY_INITIALIZER;
+
+        ds_clone(&match_natted, match);
+
+        ds_clear(actions);
+
+        if (distributed) {
+            ds_put_format(actions, "eth.src = "ETH_ADDR_FMT"; ",
+                          ETH_ADDR_ARGS(mac));
+        }
+
+        ds_clone(&actions_natted, actions);
+
+        ds_put_format(&actions_natted, "ct_snat(%s", nat->external_ip);
+        if (nat->external_port_range[0]) {
+            ds_put_format(&actions_natted, ",%s", nat->external_port_range);
+        }
+        ds_put_format(&actions_natted, ");");
+
+        ds_put_cstr(&match_natted, " && ct_label.natted == 1");
+        ovn_lflow_add_with_hint(lflows, od, S_ROUTER_OUT_SNAT,
+                                priority + 2, ds_cstr(&match_natted),
+                                ds_cstr(&actions_natted), &nat->header_);
+
+        ds_put_cstr(match, " && "REGBIT_DST_NAT_IP_LOCAL" == 1");
+        ds_put_format(actions,  REGBIT_DST_NAT_IP_LOCAL" = 0; %s",
+                      ds_cstr(&actions_natted));
+        ovn_lflow_add_with_hint(lflows, od, S_ROUTER_OUT_SNAT,
+                                priority + 1, ds_cstr(match),
+                                ds_cstr(actions), &nat->header_);
+
+        ds_destroy(&match_natted);
+        ds_destroy(&actions_natted);
     }
 }
 

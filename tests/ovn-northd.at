@@ -5975,6 +5975,42 @@ AT_CHECK([grep -e "(lr_in_ip_routing   ).*outport" lr0flows | sed 's/table=../ta
 ])
 
 AT_CLEANUP
+
+OVN_FOR_EACH_NORTHD([
+AT_SETUP([nat -- SNAT flows for DNAT traffic])
+# This test makes sure that SNAT flows are added that ensure a unique
+# SNAT zone is used for traffic that is natted. We don't need an elaborate
+# setup just to ensure the flow is present. We just need to create the router
+# and add an SNAT to it.
+
+ovn_start
+
+check ovn-nbctl lr-add r0
+check ovn-nbctl lrp-add r0 r0p1 00:00:00:00:00:01 10.0.0.1
+check ovn-nbctl lrp-set-gateway-chassis r0p1 hv1
+check ovn-nbctl lr-nat-add r0 snat 10.0.0.1 192.168.0.1
+check ovn-nbctl --wait=sb sync
+
+ovn-sbctl lflow-list r0 | grep lr_out_snat | sed 's/table=../table=??/' > snat_flows
+
+# We expect three SNAT flows for the NAT we created.
+# Priority-161 flow that uses CT zone stored in reg11
+# Priority-162 flow that uses CT zone stored in reg12 if local dnat is detected
+# Priority-163 flow taht uses CT zone stored in reg12 if traffic is natted
+# Since priorities are unique, we can grep based on that and check the resulting
+# flows are as expected.
+
+AT_CHECK([grep priority=163 snat_flows], [0], [dnl
+  table=??(lr_out_snat        ), priority=163  , match=(ip && ip4.src == 192.168.0.1 && outport == "r0p1" && is_chassis_resident("cr-r0p1") && ct_label.natted == 1), action=(ct_snat(10.0.0.1);)
+])
+AT_CHECK([grep priority=162 snat_flows], [0], [dnl
+  table=??(lr_out_snat        ), priority=162  , match=(ip && ip4.src == 192.168.0.1 && outport == "r0p1" && is_chassis_resident("cr-r0p1") && reg9[[4]] == 1), action=(reg9[[4]] = 0; ct_snat(10.0.0.1);)
+])
+AT_CHECK([grep priority=161 snat_flows], [0], [dnl
+  table=??(lr_out_snat        ), priority=161  , match=(ip && ip4.src == 192.168.0.1 && outport == "r0p1" && is_chassis_resident("cr-r0p1")), action=(ct_snat_in_czone(10.0.0.1);)
+])
+
+AT_CLEANUP
 ])
 
 OVN_FOR_EACH_NORTHD([
