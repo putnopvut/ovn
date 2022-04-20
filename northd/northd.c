@@ -15324,6 +15324,7 @@ ovnsb_db_run(struct northd_input *input_data,
         update_sb_ha_group_ref_chassis(input_data,
                                        &ha_ref_chassis_map);
     }
+
     shash_destroy(&ha_ref_chassis_map);
 }
 
