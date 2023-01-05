@@ -32,7 +32,7 @@ The responsibilities of an OVN committer are documented
 :doc:`committer-responsibilities`.
 
 The process for adding or removing committers is documented
-+:doc:`committer-grant-revocation`.
+:doc:`committer-grant-revocation`.
 
 This is the current list of active OVN committers:
 
