@@ -21,4 +21,28 @@
 
       Avoid deeper levels because they do not render well.
 
+==========
+Committers
+==========
+
+OVN committers are the people who have been granted access to push
+changes to to the OVN git repository.
+
+The responsibilities of an OVN committer are documented
+:doc:`committer-responsibilities`.
+
+The process for adding or removing committers is documented
+:doc:`committer-grant-revocation`.
+
+This is the current list of active OVN committers:
+
 .. include:: ../../MAINTAINERS.rst
+   :start-after: OVN Maintainers
+   :end-before: OVN Emeritus Maintainers
+
+The project also maintains a list of Emeritus Committers (or Maintainers).
+More information about Emeritus Committers can be found
+:doc:`committer-emeritus-status`.
+
+.. include:: ../../MAINTAINERS.rst
+   :start-after: OVN Emeritus Maintainers
