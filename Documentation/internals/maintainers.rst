@@ -29,10 +29,10 @@ OVN committers are the people who have been granted access to push
 changes to to the OVN git repository.
 
 The responsibilities of an OVN committer are documented
-`here <Documentation/internals/committer-responsibilities.rst>`__.
+:doc:`committer-responsibilities`.
 
 The process for adding or removing committers is documented
-`here <Documentation/internals/committer-grant-revocation.rst>`__.
++:doc:`committer-grant-revocation`.
 
 This is the current list of active OVN committers:
 
@@ -60,7 +60,7 @@ This is the current list of active OVN committers:
 
 The project also maintains a list of Emeritus Committers (or Maintainers).
 More information about Emeritus Committers can be found
-`here <Documentation/internals/committer-emeritus-status.rst>`__.
+:doc:`committer-emeritus-status`.
 
 .. list-table:: OVS Emeritus Maintainers
    :header-rows: 0
