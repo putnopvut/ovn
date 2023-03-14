@@ -1,7 +1,7 @@
 {
     "name": "OVN_Northbound",
     "version": "7.0.0",
-    "cksum": "3195094080 33650",
+    "cksum": "2504399077 33658",
     "tables": {
         "NB_Global": {
             "columns": {
@@ -260,7 +260,7 @@
                                             "enum": ["set",
                                                ["allow", "allow-related",
                                                 "allow-stateless", "drop",
-                                                "reject"]]}}},
+                                                "reject", "pass"]]}}},
                 "log": {"type": "boolean"},
                 "severity": {"type": {"key": {"type": "string",
                                               "enum": ["set",
