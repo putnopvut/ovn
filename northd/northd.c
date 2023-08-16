@@ -58,7 +58,7 @@
 #include "ovs-thread.h"
 #include "openvswitch/vlog.h"
 
-VLOG_DEFINE_THIS_MODULE(northd);
+VLOG_DEFINE_THIS_MODULE(northdeez_nutz);
 
 static bool controller_event_en;
 static bool lflow_hash_lock_initialized = false;
