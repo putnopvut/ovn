@@ -21,7 +21,6 @@
 #include "lib/dirs.h"
 #include "socket-util.h"
 #include "lib/vswitch-idl.h"
-#include "odp-netlink.h"
 #include "openvswitch/vlog.h"
 #include "openvswitch/ofpbuf.h"
 #include "openvswitch/rconn.h"
@@ -35,48 +34,20 @@ VLOG_DEFINE_THIS_MODULE(features);
 
 #define FEATURES_DEFAULT_PROBE_INTERVAL_SEC 5
 
-/* Parses 'cap_name' from 'ovs_capabilities' and returns whether the
- * type of capability is supported or not. */
-typedef bool ovs_feature_parse_func(const struct smap *ovs_capabilities,
-                                    const char *cap_name);
-
 struct ovs_feature {
     enum ovs_feature_value value;
     const char *name;
-    ovs_feature_parse_func *parse;
 };
-
-static bool
-bool_parser(const struct smap *ovs_capabilities, const char *cap_name)
-{
-    return smap_get_bool(ovs_capabilities, cap_name, false);
-}
-
-static bool
-dp_hash_l4_sym_support_parser(const struct smap *ovs_capabilities,
-                              const char *cap_name OVS_UNUSED)
-{
-    int max_hash_alg = smap_get_int(ovs_capabilities, "max_hash_alg", 0);
-
-    return max_hash_alg == OVS_HASH_ALG_SYM_L4;
-}
 
 static struct ovs_feature all_ovs_features[] = {
     {
         .value = OVS_CT_ZERO_SNAT_SUPPORT,
-        .name = "ct_zero_snat",
-        .parse = bool_parser,
+        .name = "ct_zero_snat"
     },
     {
         .value = OVS_CT_TUPLE_FLUSH_SUPPORT,
-        .name = "ct_flush",
-        .parse = bool_parser,
-    },
-    {
-        .value = OVS_DP_HASH_L4_SYM_SUPPORT,
-        .name = "dp_hash_l4_sym_support",
-        .parse = dp_hash_l4_sym_support_parser,
-    },
+        .name = "ct_flush"
+    }
 };
 
 /* A bitmap of OVS features that have been detected as 'supported'. */
@@ -107,7 +78,6 @@ ovs_feature_is_valid(enum ovs_feature_value feature)
     case OVS_CT_ZERO_SNAT_SUPPORT:
     case OVS_DP_METER_SUPPORT:
     case OVS_CT_TUPLE_FLUSH_SUPPORT:
-    case OVS_DP_HASH_L4_SYM_SUPPORT:
         return true;
     default:
         return false;
@@ -248,17 +218,18 @@ ovs_feature_support_run(const struct smap *ovs_capabilities,
     }
 
     for (size_t i = 0; i < ARRAY_SIZE(all_ovs_features); i++) {
-        struct ovs_feature *feature = &all_ovs_features[i];
-        bool old_state = supported_ovs_features & feature->value;
-        bool new_state = feature->parse(ovs_capabilities, feature->name);
+        enum ovs_feature_value value = all_ovs_features[i].value;
+        const char *name = all_ovs_features[i].name;
+        bool old_state = supported_ovs_features & value;
+        bool new_state = smap_get_bool(ovs_capabilities, name, false);
         if (new_state != old_state) {
             updated = true;
             if (new_state) {
-                supported_ovs_features |= feature->value;
+                supported_ovs_features |= value;
             } else {
-                supported_ovs_features &= ~feature->value;
+                supported_ovs_features &= ~value;
             }
-            VLOG_INFO_RL(&rl, "OVS Feature: %s, state: %s", feature->name,
+            VLOG_INFO_RL(&rl, "OVS Feature: %s, state: %s", name,
                          new_state ? "supported" : "not supported");
         }
     }
