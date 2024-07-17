@@ -617,7 +617,7 @@ struct ovn_port {
     bool visited;
 
     /* Only used for the router type LSP whose peer is l3dgw_port */
-    bool enable_router_port_acl;
+    bool enable_router_port_conntrack;
 
     /* Reference of lflows generated for this ovn_port.
      *
