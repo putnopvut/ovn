@@ -6183,8 +6183,11 @@ build_ls_stateful_rec_pre_lb(const struct ls_stateful_record *ls_stateful_rec,
                              struct lflow_ref *lflow_ref)
 {
     for (size_t i = 0; i < od->n_router_ports; i++) {
-        skip_port_from_conntrack(od, od->router_ports[i],
-                                 ls_stateful_rec->has_stateful_acl,
+        struct ovn_port *op = od->router_ports[i];
+        if (op->enable_router_port_conntrack) {
+            continue;
+        }
+        skip_port_from_conntrack(od, op, ls_stateful_rec->has_stateful_acl,
                                  S_SWITCH_IN_PRE_LB, S_SWITCH_OUT_PRE_LB,
                                  110, lflows, lflow_ref);
     }
