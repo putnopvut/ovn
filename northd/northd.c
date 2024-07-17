@@ -2477,8 +2477,17 @@ join_logical_ports(const struct sbrec_port_binding_table *sbrec_pb_table,
 
         if (op->peer && op->peer->nbsp) {
             /* Only used for the router type LSP whose peer is l3dgw_port */
-            op->peer->enable_router_port_acl = smap_get_bool(
+            if (smap_get(&op->peer->nbsp->options, "enable_router_port_acl")) {
+                /* enable_router_port_acl is the legacy name for the option. If it is
+                 * explicitly set, then honor it. Otherwise, use the documented option
+                 * name
+                 */
+                op->peer->enable_router_port_conntrack = smap_get_bool(
                     &op->peer->nbsp->options, "enable_router_port_acl", false);
+            } else {
+                op->peer->enable_router_port_conntrack = smap_get_bool(
+                    &op->peer->nbsp->options, "enable_router_port_conntrack", false);
+            }
         }
     }
 
@@ -6134,7 +6143,7 @@ build_ls_stateful_rec_pre_acls(
     if (ls_stateful_rec->has_stateful_acl) {
         for (size_t i = 0; i < od->n_router_ports; i++) {
             struct ovn_port *op = od->router_ports[i];
-            if (op->enable_router_port_acl) {
+            if (op->enable_router_port_conntrack) {
                 continue;
             }
             skip_port_from_conntrack(od, op, true,

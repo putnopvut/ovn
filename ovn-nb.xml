@@ -1200,11 +1200,15 @@
           MAC/IPs to an appropriate destination.
         </column>
 
-        <column name="options" key="enable_router_port_acl"
+        <column name="options" key="enable_router_port_conntrack"
                 type='{"type": "boolean"}'>
           Optional. Enable conntrack for the router port whose peer is
           l3dgw_port if set to <code>true</code>. The default value is
-          <code>false</code>.
+          <code>false</code>. This option was formerly called
+          <code>enable_router_port_acl</code>. The name was changed when
+          the scope was expanded to allow for router ports on logical
+          switches to use conntrack for other purposes, such as load
+          balancers.
         </column>
 
         <column name="options" key="ct-zone-limit"
