@@ -41,6 +41,7 @@
 #include "en-sampling-app.h"
 #include "en-sync-sb.h"
 #include "en-sync-from-sb.h"
+#include "en-acl-ids.h"
 #include "unixctl.h"
 #include "util.h"
 
@@ -102,7 +103,8 @@ static unixctl_cb_func chassis_features_list;
     SB_NODE(fdb, "fdb") \
     SB_NODE(static_mac_binding, "static_mac_binding") \
     SB_NODE(chassis_template_var, "chassis_template_var") \
-    SB_NODE(logical_dp_group, "logical_dp_group")
+    SB_NODE(logical_dp_group, "logical_dp_group") \
+    SB_NODE(acl_id, "acl_id")
 
 enum sb_engine_node {
 #define SB_NODE(NAME, NAME_STR) SB_##NAME,
@@ -161,6 +163,7 @@ static ENGINE_NODE(route_policies, "route_policies");
 static ENGINE_NODE(routes, "routes");
 static ENGINE_NODE(bfd, "bfd");
 static ENGINE_NODE(bfd_sync, "bfd_sync");
+static ENGINE_NODE(acl_id, "acl_id");
 
 void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                           struct ovsdb_idl_loop *sb)
@@ -185,6 +188,9 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
     engine_add_input(&en_global_config, &en_sb_chassis,
                      global_config_sb_chassis_handler);
     engine_add_input(&en_global_config, &en_sampling_app, NULL);
+
+    engine_add_input(&en_acl_id, &en_nb_acl, NULL);
+    engine_add_input(&en_acl_id, &en_sb_acl_id, NULL);
 
     engine_add_input(&en_northd, &en_nb_mirror, NULL);
     engine_add_input(&en_northd, &en_nb_static_mac_binding, NULL);
@@ -344,6 +350,8 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                      northd_output_mac_binding_aging_handler);
     engine_add_input(&en_northd_output, &en_fdb_aging,
                      northd_output_fdb_aging_handler);
+    engine_add_input(&en_northd_output, &en_acl_id,
+                     northd_output_acl_id_handler);
 
     struct engine_arg engine_arg = {
         .nb_idl = nb->idl,
