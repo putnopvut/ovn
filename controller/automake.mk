@@ -1,5 +1,7 @@
 bin_PROGRAMS += controller/ovn-controller
 controller_ovn_controller_SOURCES = \
+	controller/acl_ids.c \
+	controller/acl_ids.h \
 	controller/bfd.c \
 	controller/bfd.h \
 	controller/binding.c \
