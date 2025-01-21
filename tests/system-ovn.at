@@ -14483,6 +14483,11 @@ test
 
 : > output.txt
 
+echo "Sanity check dump flows"
+ovs-ofctl dump-flows br-int
+echo "And ct state"
+ovs-appctl dpctl/dump-conntrack
+
 check ovn-nbctl acl-add sw from-lport 1000 'ip4.dst == 192.168.1.2' allow-related
 check ovn-nbctl acl-add sw from-lport 0 '1' drop
 
@@ -14495,6 +14500,11 @@ test
 ])
 
 : > output.txt
+
+echo "With allowed ACL, dump flows"
+ovs-ofctl dump-flows br-int
+echo "And ct state"
+ovs-appctl dpctl/dump-conntrack
 
 # At this point, I need to adjust the ACL so it no longer matches. We then need
 # to ensure that the traffic does not pass. How we test this is...interesting. I'm
@@ -14524,6 +14534,13 @@ OVS_WAIT_FOR_OUTPUT([ovs-ofctl dump-flows br-int | grep "cookie=$drop_acl_cookie
 AT_CHECK([cat output.txt], [0], [dnl
 ])
 
+echo "After dropped packet dump flows"
+ovs-ofctl dump-flows br-int
+echo "And the conntrack"
+ovs-appctl dpctl/dump-conntrack
+echo "And the datapath flows"
+ovs-appctl dpctl/dump-flows
+
 # Reset the client and server processes so that we create a new connection
 client_pid=$(cat client.pid)
 server_pid=$(cat server.pid)
@@ -14547,6 +14564,12 @@ check ovn-nbctl set ACL $acl_uuid match="\"ip4.dst == 192.168.1.2\""
 
 # We'll also enable persist-established.
 check ovn-nbctl --wait=hv set ACL $acl_uuid options:persist-established=true
+#
+# Get the ID for this ACL
+acl_id=$(ovn-sbctl get ACL_ID $acl_uuid id)
+acl_id=$(printf %x $acl_id)
+
+echo "ACL ID is $acl_id"
 
 # Make sure traffic passes
 AT_CHECK([printf "test\n" > /tmp/myfifo], [0], [dnl
@@ -14561,6 +14584,13 @@ test
 # Get the ID for this ACL
 acl_id=$(ovn-sbctl get ACL_ID $acl_uuid id)
 acl_id=$(printf %x $acl_id)
+
+echo "And this is where we should see stuff in conntrack..."
+ovs-ofctl dump-flows br-int
+echo ""
+ovs-appctl dpctl/dump-conntrack
+echo "And the datapath flows"
+ovs-appctl dpctl/dump-flows
 
 OVS_WAIT_FOR_OUTPUT([ovs-appctl dpctl/dump-conntrack | FORMAT_CT(192.168.1.2) | \
 grep "labels=0x"$acl_id"00000000000000000000" | \

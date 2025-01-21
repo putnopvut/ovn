@@ -7192,6 +7192,7 @@ consider_acl(struct lflow_table *lflows, const struct ovn_datapath *od,
             const struct sbrec_acl_id *sb_id;
             sb_id = sbrec_acl_id_table_get_for_uuid(sbrec_acl_id_table,
                                                     &acl->header_.uuid);
+            VLOG_INFO("!!! Going to set REG_ACL_ID to %"PRId64, sb_id->id);
             if (!features->ct_label_flush) {
                 static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
                 VLOG_WARN_RL(&rl, "OVS does not support CT label flush. "
