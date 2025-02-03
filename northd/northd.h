@@ -68,6 +68,10 @@ struct northd_input {
     /* ACL ID inputs. */
     const struct acl_id_data *acl_id_data;
 
+    /* Synced datapath inputs. */
+    const struct ovn_synced_logical_switch_map *synced_lses;
+    const struct ovn_synced_logical_router_map *synced_lrs;
+
     /* Indexes */
     struct ovsdb_idl_index *sbrec_chassis_by_name;
     struct ovsdb_idl_index *sbrec_chassis_by_hostname;
@@ -963,8 +967,6 @@ lr_has_multiple_gw_ports(const struct ovn_datapath *od)
 {
     return od->n_l3dgw_ports > 1 && !od->is_gw_router;
 }
-
-uint32_t get_ovn_max_dp_key_local(bool _vxlan_mode, bool ic_mode);
 
 /* Returns true if the logical router port 'enabled' column is empty or
  * set to true.  Otherwise, returns false. */
