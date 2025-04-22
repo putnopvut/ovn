@@ -22,6 +22,7 @@
 #include "lib/sset.h"
 #include "lib/svec.h"
 #include "include/ovn/version.h"
+#include "northd/datapath-sync.h"
 
 #define ovn_set_program_name(name) \
     ovs_set_program_name(name, OVN_PACKAGE_VERSION)
@@ -545,14 +546,6 @@ void put_load(uint64_t value, enum mf_field_id dst, size_t ofs, size_t n_bits,
 #define _VFUNC_(name, n) name##n
 #define _VFUNC(name, n) _VFUNC_(name, n)
 #define VFUNC(func, ...) _VFUNC(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
-
-/* The two purposes for which ovn-northd uses OVN logical datapaths. */
-enum ovn_datapath_type {
-    DP_UNSPEC = 0,
-    DP_SWITCH = 1,                  /* OVN logical switch. */
-    DP_ROUTER = 2,                  /* OVN logical router. */
-    DP_MAX,
-};
 
 bool datapath_get_nb_uuid_and_type(const struct sbrec_datapath_binding *sb,
                                    struct uuid *nb_uuid,
