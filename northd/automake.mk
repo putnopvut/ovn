@@ -54,6 +54,16 @@ northd_ovn_northd_SOURCES = \
 	northd/en-learned-route-sync.h \
 	northd/en-group-ecmp-route.c \
 	northd/en-group-ecmp-route.h \
+	northd/en-port-binding-logical-router-port.c \
+	northd/en-port-binding-logical-router-port.h \
+	northd/en-port-binding-logical-switch-port.c \
+	northd/en-port-binding-logical-switch-port.h \
+	northd/en-port-binding-chassisredirect.c \
+	northd/en-port-binding-chassisredirect.h \
+	northd/en-port-binding-mirror.c \
+	northd/en-port-binding-mirror.h \
+	northd/en-port-binding-pair.c \
+	northd/en-port-binding-pair.h \
 	northd/inc-proc-northd.c \
 	northd/inc-proc-northd.h \
 	northd/ipam.c \
@@ -61,7 +71,9 @@ northd_ovn_northd_SOURCES = \
 	northd/lflow-mgr.c \
 	northd/lflow-mgr.h \
 	northd/lb.c \
-	northd/lb.h
+	northd/lb.h \
+	northd/port-binding-pair.c \
+	northd/port-binding-pair.h
 northd_ovn_northd_LDADD = \
 	lib/libovn.la \
 	$(OVSDB_LIBDIR)/libovsdb.la \

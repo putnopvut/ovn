@@ -148,6 +148,9 @@ en_global_config_run(struct engine_node *node , void *data)
     config_data->max_dp_tunnel_id =
         get_ovn_max_dp_key_local(config_data->vxlan_mode, ic_vxlan_mode);
 
+    uint8_t pb_tunnel_bits = config_data->vxlan_mode ? 12 : 16;
+    config_data->max_pb_tunnel_id = (1u << (pb_tunnel_bits - 1)) - 1;
+
     char *max_tunid = xasprintf("%d", config_data->max_dp_tunnel_id);
     smap_replace(options, "max_tunid", max_tunid);
     free(max_tunid);

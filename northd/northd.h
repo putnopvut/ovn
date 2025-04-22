@@ -76,6 +76,12 @@ struct northd_input {
     const struct ovn_synced_logical_switch_map *synced_lses;
     const struct ovn_synced_logical_router_map *synced_lrs;
 
+    /* Paired port binding inputs. */
+    const struct ovn_paired_logical_switch_port_map *paired_lsps;
+    const struct ovn_paired_logical_router_port_map *paired_lrps;
+    const struct ovn_paired_chassisredirect_port_map *paired_crps;
+    const struct ovn_paired_mirror_map *paired_mirrors;
+
     /* Indexes */
     struct ovsdb_idl_index *sbrec_chassis_by_name;
     struct ovsdb_idl_index *sbrec_chassis_by_hostname;
@@ -377,9 +383,6 @@ struct ovn_datapath {
 
     /* Logical switch data. */
     struct vector router_ports; /* Vector of struct ovn_port *. */
-
-    struct hmap port_tnlids;
-    uint32_t port_key_hint;
 
     bool has_unknown;
     bool has_vtep_lports;
@@ -829,6 +832,8 @@ void ovnsb_db_run(struct ovsdb_idl_txn *ovnnb_txn,
                   const struct sbrec_ha_chassis_group_table *,
                   struct hmap *ls_ports,
                   struct hmap *lr_ports);
+void lsp_set_up(const struct sbrec_port_binding *pb,
+                const struct nbrec_logical_switch_port *lsp);
 bool northd_handle_ls_changes(struct ovsdb_idl_txn *,
                               const struct northd_input *,
                               struct northd_data *);
@@ -1041,4 +1046,9 @@ struct ovn_port_routable_addresses get_op_addresses(
 
 void destroy_routable_addresses(struct ovn_port_routable_addresses *ra);
 
+bool lsp_is_type_changed(const struct sbrec_port_binding *sb,
+                         const struct nbrec_logical_switch_port *nbsp,
+                         bool *update_sbrec);
+const char *
+ovn_datapath_name(const struct sbrec_datapath_binding *sb);
 #endif /* NORTHD_H */

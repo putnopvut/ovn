@@ -51,6 +51,7 @@ struct ed_type_global_config {
 
     bool vxlan_mode;
     uint32_t max_dp_tunnel_id;
+    uint32_t max_pb_tunnel_id;
 
     bool tracked;
     struct global_config_tracked_data tracked_data;

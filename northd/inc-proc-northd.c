@@ -50,6 +50,11 @@
 #include "en-datapath-logical-router.h"
 #include "en-datapath-logical-switch.h"
 #include "en-datapath-sync.h"
+#include "en-port-binding-logical-router-port.h"
+#include "en-port-binding-logical-switch-port.h"
+#include "en-port-binding-chassisredirect.h"
+#include "en-port-binding-mirror.h"
+#include "en-port-binding-pair.h"
 #include "unixctl.h"
 #include "util.h"
 
@@ -187,6 +192,15 @@ static ENGINE_NODE(datapath_logical_switch);
 static ENGINE_NODE(datapath_sync);
 static ENGINE_NODE(datapath_synced_logical_router);
 static ENGINE_NODE(datapath_synced_logical_switch);
+static ENGINE_NODE(port_binding_logical_router_port);
+static ENGINE_NODE(port_binding_logical_switch_port);
+static ENGINE_NODE(port_binding_chassisredirect_port);
+static ENGINE_NODE(port_binding_mirror);
+static ENGINE_NODE(port_binding_pair);
+static ENGINE_NODE(port_binding_paired_logical_router_port);
+static ENGINE_NODE(port_binding_paired_logical_switch_port);
+static ENGINE_NODE(port_binding_paired_chassisredirect_port);
+static ENGINE_NODE(port_binding_paired_mirror);
 
 void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                           struct ovsdb_idl_loop *sb)
@@ -232,6 +246,36 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
     engine_add_input(&en_datapath_synced_logical_switch, &en_datapath_sync,
                      NULL);
 
+    engine_add_input(&en_port_binding_logical_switch_port,
+                     &en_datapath_synced_logical_switch, NULL);
+    engine_add_input(&en_port_binding_logical_router_port,
+                     &en_datapath_synced_logical_router, NULL);
+    engine_add_input(&en_port_binding_chassisredirect_port,
+                     &en_datapath_synced_logical_switch, NULL);
+    engine_add_input(&en_port_binding_chassisredirect_port,
+                     &en_datapath_synced_logical_router, NULL);
+    engine_add_input(&en_port_binding_mirror,
+                     &en_datapath_synced_logical_switch, NULL);
+    engine_add_input(&en_port_binding_pair,
+                     &en_port_binding_logical_switch_port, NULL);
+    engine_add_input(&en_port_binding_pair,
+                     &en_port_binding_logical_router_port, NULL);
+    engine_add_input(&en_port_binding_pair,
+                     &en_port_binding_chassisredirect_port, NULL);
+    engine_add_input(&en_port_binding_pair, &en_port_binding_mirror, NULL);
+    engine_add_input(&en_port_binding_pair, &en_sb_port_binding, NULL);
+    engine_add_input(&en_port_binding_pair, &en_global_config, NULL);
+    engine_add_input(&en_port_binding_pair, &en_sb_fdb,
+                     port_binding_fdb_change_handler);
+    engine_add_input(&en_port_binding_paired_logical_router_port,
+                     &en_port_binding_pair, NULL);
+    engine_add_input(&en_port_binding_paired_logical_switch_port,
+                     &en_port_binding_pair, NULL);
+    engine_add_input(&en_port_binding_paired_chassisredirect_port,
+                     &en_port_binding_pair, NULL);
+    engine_add_input(&en_port_binding_paired_mirror, &en_port_binding_pair,
+                     NULL);
+
     engine_add_input(&en_northd, &en_nb_mirror, NULL);
     engine_add_input(&en_northd, &en_nb_mirror_rule, NULL);
     engine_add_input(&en_northd, &en_nb_static_mac_binding, NULL);
@@ -247,7 +291,11 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
     engine_add_input(&en_northd, &en_sb_service_monitor, NULL);
     engine_add_input(&en_northd, &en_sb_static_mac_binding, NULL);
     engine_add_input(&en_northd, &en_sb_chassis_template_var, NULL);
-    engine_add_input(&en_northd, &en_sb_fdb, northd_sb_fdb_change_handler);
+    /* We use engine_noop_handler here because fdb changes are handled
+     * by the port binding pairing node. northd uses the sb_fdb data
+     * but does not need to do anything if that data is updated.
+     */
+    engine_add_input(&en_northd, &en_sb_fdb, engine_noop_handler);
     engine_add_input(&en_northd, &en_global_config,
                      northd_global_config_handler);
 
@@ -287,6 +335,14 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
     engine_add_input(&en_northd, &en_datapath_synced_logical_router,
                      engine_noop_handler);
     engine_add_input(&en_northd, &en_datapath_synced_logical_switch,
+                     engine_noop_handler);
+    engine_add_input(&en_northd, &en_port_binding_paired_logical_router_port,
+                     engine_noop_handler);
+    engine_add_input(&en_northd, &en_port_binding_paired_logical_switch_port,
+                     engine_noop_handler);
+    engine_add_input(&en_northd, &en_port_binding_paired_chassisredirect_port,
+                     engine_noop_handler);
+    engine_add_input(&en_northd, &en_port_binding_paired_mirror,
                      engine_noop_handler);
 
     engine_add_input(&en_lr_nat, &en_northd, lr_nat_northd_handler);

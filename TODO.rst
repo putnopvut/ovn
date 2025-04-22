@@ -168,3 +168,15 @@ OVN To-do List
     ovn\_synced\_logical_router and ovn\_synced\_logical\_switch. This will
     allow for the eventual removal of the ovn\_datapath structure from the
     codebase.
+
+* Port Binding sync nodes
+
+  * Southbound Port bindings are synced across three engine nodes:
+    - en_port_binding_pair
+    - en_northd
+    - en_sync_to_sb
+    It would be easier to work with if these were combined into a
+    single node instead.
+
+  * Add incremental processing to the en-port-binding-pair node, as
+    well as derivative nodes.

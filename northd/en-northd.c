@@ -125,6 +125,19 @@ northd_get_input_data(struct engine_node *node,
 
     input_data->synced_lrs =
         engine_get_input_data("datapath_synced_logical_router", node);
+
+    input_data->paired_lsps =
+        engine_get_input_data("port_binding_paired_logical_switch_port", node);
+
+    input_data->paired_lrps =
+        engine_get_input_data("port_binding_paired_logical_router_port", node);
+
+    input_data->paired_crps =
+        engine_get_input_data("port_binding_paired_chassisredirect_port",
+                              node);
+
+    input_data->paired_mirrors =
+        engine_get_input_data("port_binding_paired_mirror", node);
 }
 
 enum engine_node_state
@@ -499,42 +512,6 @@ en_northd_clear_tracked_data(void *data_)
 {
     struct northd_data *data = data_;
     destroy_northd_data_tracked_changes(data);
-}
-
-enum engine_input_handler_result
-northd_sb_fdb_change_handler(struct engine_node *node, void *data)
-{
-    struct northd_data *nd = data;
-    const struct sbrec_fdb_table *sbrec_fdb_table =
-        EN_OVSDB_GET(engine_get_input("SB_fdb", node));
-
-    /* check if changed rows are stale and delete them */
-    const struct sbrec_fdb *fdb_e, *fdb_prev_del = NULL;
-    SBREC_FDB_TABLE_FOR_EACH_TRACKED (fdb_e, sbrec_fdb_table) {
-        if (sbrec_fdb_is_deleted(fdb_e)) {
-            continue;
-        }
-
-        if (fdb_prev_del) {
-            sbrec_fdb_delete(fdb_prev_del);
-        }
-
-        fdb_prev_del = fdb_e;
-        struct ovn_datapath *od
-            = ovn_datapath_find_by_key(&nd->ls_datapaths.datapaths,
-                                       fdb_e->dp_key);
-        if (od) {
-            if (ovn_tnlid_present(&od->port_tnlids, fdb_e->port_key)) {
-                fdb_prev_del = NULL;
-            }
-        }
-    }
-
-    if (fdb_prev_del) {
-        sbrec_fdb_delete(fdb_prev_del);
-    }
-
-    return EN_HANDLED_UNCHANGED;
 }
 
 void
