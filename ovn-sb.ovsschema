@@ -1,7 +1,7 @@
 {
     "name": "OVN_Southbound",
-    "version": "21.2.0",
-    "cksum": "29145795 34859",
+    "version": "21.3.0",
+    "cksum": "3727084407 34990",
     "tables": {
         "SB_Global": {
             "columns": {
@@ -196,6 +196,8 @@
                 "load_balancers": {"type": {"key": {"type": "uuid"},
                                             "min": 0,
                                             "max": "unlimited"}},
+                "type": {"type": {"key": {"type": "integer",
+                                          "enum": ["set", [1, 2]]}}},
                 "external_ids": {
                     "type": {"key": "string", "value": "string",
                              "min": 0, "max": "unlimited"}}},
