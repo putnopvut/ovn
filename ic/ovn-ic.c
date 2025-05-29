@@ -613,8 +613,7 @@ get_router_uuid_by_sb_pb(struct ic_context *ctx,
         return NULL;
     }
 
-    return smap_get_uuid(&router_pb->datapath->external_ids, "logical-router",
-                         router_uuid);
+    return datapath_get_nb_uuid(router_pb->datapath, router_uuid);
 }
 
 static void

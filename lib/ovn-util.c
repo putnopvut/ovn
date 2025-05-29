@@ -1503,3 +1503,53 @@ put_load(uint64_t value, enum mf_field_id dst, size_t ofs, size_t n_bits,
     ovs_be64 n_value = htonll(value);
     put_load_bytes(&n_value, 8, dst, ofs, n_bits, ofpacts);
 }
+
+bool
+datapath_get_nb_uuid_and_type(const struct sbrec_datapath_binding *sb,
+                              struct uuid *nb_uuid,
+                              enum ovn_datapath_type *type)
+{
+    if (sb->type != DP_UNSPEC) {
+        /* New style. The UUID is propagated from the NB logical datapath
+         * and the type is a direct column, so use those. */
+        *nb_uuid = sb->header_.uuid;
+        *type = sb->type;
+        return true;
+    }
+
+    /* Old style. The UUID is stored in external_ids, and the key
+     * corresponds to the datapath type. This only works with
+     * logical switches and logical routers.
+     */
+    const char *old_type;
+    old_type = "logical-switch";
+    if (smap_get_uuid(&sb->external_ids, old_type, nb_uuid)) {
+        *type = DP_SWITCH;
+        return true;
+    }
+    old_type = "logical-router";
+    if (smap_get_uuid(&sb->external_ids, old_type, nb_uuid)) {
+        *type = DP_ROUTER;
+        return true;
+    }
+    *type = DP_MAX;
+    *nb_uuid = UUID_ZERO;
+    return false;
+}
+
+bool
+datapath_get_nb_uuid(const struct sbrec_datapath_binding *sb,
+                     struct uuid *nb_uuid)
+{
+    enum ovn_datapath_type type;
+    return datapath_get_nb_uuid_and_type(sb, nb_uuid, &type);
+}
+
+enum ovn_datapath_type
+datapath_get_nb_type(const struct sbrec_datapath_binding *sb)
+{
+    enum ovn_datapath_type type;
+    struct uuid nb_uuid;
+    datapath_get_nb_uuid_and_type(sb, &nb_uuid, &type);
+    return type;
+}
