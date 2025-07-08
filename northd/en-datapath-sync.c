@@ -35,6 +35,7 @@ en_datapath_sync_init(struct engine_node *node OVS_UNUSED,
         = xmalloc(sizeof *synced_datapaths);
     *synced_datapaths = (struct ovn_synced_datapaths) {
         .synced_dps = HMAP_INITIALIZER(&synced_datapaths->synced_dps),
+        .dp_tnlids = HMAP_INITIALIZER(&synced_datapaths->dp_tnlids),
     };
 
     return synced_datapaths;
@@ -96,6 +97,8 @@ reset_synced_datapaths(struct ovn_synced_datapaths *synced_datapaths)
     HMAP_FOR_EACH_POP (sdp, hmap_node, &synced_datapaths->synced_dps) {
         free(sdp);
     }
+    ovn_destroy_tnlids(&synced_datapaths->dp_tnlids);
+    hmap_init(&synced_datapaths->dp_tnlids);
 }
 
 static void
@@ -164,7 +167,6 @@ create_synced_datapath_candidates_from_nb(
 
 static void
 assign_requested_tunnel_keys(struct vector *candidate_sdps,
-                             struct hmap *dp_tnlids,
                              struct ovn_synced_datapaths *synced_datapaths)
 {
     struct candidate_sdp *candidate;
@@ -172,7 +174,8 @@ assign_requested_tunnel_keys(struct vector *candidate_sdps,
         if (!candidate->requested_tunnel_key) {
             continue;
         }
-        if (!ovn_add_tnlid(dp_tnlids, candidate->requested_tunnel_key)) {
+        if (!ovn_add_tnlid(&synced_datapaths->dp_tnlids,
+                           candidate->requested_tunnel_key)) {
             static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
             VLOG_WARN_RL(&rl, "Logical datapath "UUID_FMT" requests same "
                          "tunnel key %"PRIu32" as another logical datapath",
@@ -190,7 +193,6 @@ assign_requested_tunnel_keys(struct vector *candidate_sdps,
 
 static void
 assign_existing_tunnel_keys(struct vector *candidate_sdps,
-                            struct hmap *dp_tnlids,
                             struct ovn_synced_datapaths *synced_datapaths)
 {
     struct candidate_sdp *candidate;
@@ -202,7 +204,8 @@ assign_existing_tunnel_keys(struct vector *candidate_sdps,
         /* Existing southbound DP. If this key is available,
          * reuse it.
          */
-        if (ovn_add_tnlid(dp_tnlids, candidate->existing_tunnel_key)) {
+        if (ovn_add_tnlid(&synced_datapaths->dp_tnlids,
+                          candidate->existing_tunnel_key)) {
             hmap_insert(&synced_datapaths->synced_dps,
                         &candidate->sdp->hmap_node,
                         uuid_hash(&candidate->sdp->sb_dp->header_.uuid));
@@ -213,7 +216,6 @@ assign_existing_tunnel_keys(struct vector *candidate_sdps,
 
 static void
 allocate_tunnel_keys(struct vector *candidate_sdps,
-                     struct hmap *dp_tnlids,
                      uint32_t max_dp_tunnel_id,
                      struct ovn_synced_datapaths *synced_datapaths)
 {
@@ -224,7 +226,8 @@ allocate_tunnel_keys(struct vector *candidate_sdps,
             continue;
         }
         uint32_t tunnel_key =
-            ovn_allocate_tnlid(dp_tnlids, "datapath", OVN_MIN_DP_KEY_LOCAL,
+            ovn_allocate_tnlid(&synced_datapaths->dp_tnlids, "datapath",
+                               OVN_MIN_DP_KEY_LOCAL,
                                max_dp_tunnel_id, &hint);
         if (!tunnel_key) {
             continue;
@@ -288,17 +291,13 @@ en_datapath_sync_run(struct engine_node *node , void *data)
                                               &candidate_sdps);
     uuidset_destroy(&visited);
 
-    struct hmap dp_tnlids = HMAP_INITIALIZER(&dp_tnlids);
-    assign_requested_tunnel_keys(&candidate_sdps, &dp_tnlids,
-                                 synced_datapaths);
-    assign_existing_tunnel_keys(&candidate_sdps, &dp_tnlids, synced_datapaths);
-    allocate_tunnel_keys(&candidate_sdps, &dp_tnlids,
-                         global_config->max_dp_tunnel_id, synced_datapaths);
+    assign_requested_tunnel_keys(&candidate_sdps, synced_datapaths);
+    assign_existing_tunnel_keys(&candidate_sdps, synced_datapaths);
+    allocate_tunnel_keys(&candidate_sdps, global_config->max_dp_tunnel_id,
+                         synced_datapaths);
 
     delete_unassigned_candidates(&candidate_sdps);
     vector_destroy(&candidate_sdps);
-
-    ovn_destroy_tnlids(&dp_tnlids);
 
     return EN_UPDATED;
 }
@@ -312,4 +311,5 @@ void en_datapath_sync_cleanup(void *data)
         free(sdp);
     }
     hmap_destroy(&synced_datapaths->synced_dps);
+    ovn_destroy_tnlids(&synced_datapaths->dp_tnlids);
 }
