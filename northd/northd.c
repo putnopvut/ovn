@@ -861,7 +861,7 @@ build_datapaths(const struct ovn_synced_logical_switch_map *ls_map,
         struct ovn_datapath *od =
             ovn_datapath_create(&ls_datapaths->datapaths,
                                 &ls->nb->header_.uuid,
-                                ls->nb, NULL, ls->sb);
+                                ls->nb, NULL, ls->sdp->sb_dp);
         init_ipam_info_for_datapath(od);
         if (smap_get_bool(&od->nbs->other_config,
                           "enable-stateless-acl-with-lb",
@@ -875,7 +875,7 @@ build_datapaths(const struct ovn_synced_logical_switch_map *ls_map,
         struct ovn_datapath *od =
             ovn_datapath_create(&lr_datapaths->datapaths,
                                 &lr->nb->header_.uuid,
-                                NULL, lr->nb, lr->sb);
+                                NULL, lr->nb, lr->sdp->sb_dp);
         if (smap_get(&od->nbr->options, "chassis")) {
             od->is_gw_router = true;
         }
