@@ -31,8 +31,6 @@
 
 struct northd_input {
     /* Northbound table references */
-    const struct nbrec_logical_switch_table *nbrec_logical_switch_table;
-    const struct nbrec_logical_router_table *nbrec_logical_router_table;
     const struct nbrec_static_mac_binding_table
         *nbrec_static_mac_binding_table;
     const struct nbrec_chassis_template_var_table
@@ -368,7 +366,7 @@ struct ovn_datapath {
 
     const struct nbrec_logical_switch *nbs;  /* May be NULL. */
     const struct nbrec_logical_router *nbr;  /* May be NULL. */
-    const struct sbrec_datapath_binding *sb; /* May be NULL. */
+    const struct ovn_synced_datapath *sdp; /* May be NULL. */
 
     struct ovs_list list;       /* In list of similar records. */
 
