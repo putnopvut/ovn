@@ -50,6 +50,7 @@ DOC_SOURCE = \
 	Documentation/internals/committer-grant-revocation.rst \
 	Documentation/internals/committer-responsibilities.rst \
 	Documentation/internals/documentation.rst \
+	Documentation/internals/incremental-engine.rst \
 	Documentation/internals/mailing-lists.rst \
 	Documentation/internals/maintainers.rst \
 	Documentation/internals/ovs_submodule.rst \
