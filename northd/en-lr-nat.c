@@ -117,12 +117,12 @@ en_lr_nat_run(struct engine_node *node, void *data_)
 }
 
 /* Handler functions. */
-enum engine_input_handler_result
+struct engine_input_handler_result
 lr_nat_northd_handler(struct engine_node *node, void *data_)
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     if (!northd_has_lr_nats_in_tracked_data(&northd_data->trk_data)) {

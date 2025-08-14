@@ -326,13 +326,13 @@ delete_unassigned_candidates(struct vector *candidate_sdps)
     }
 }
 
-static enum engine_input_handler_result
+static struct engine_input_handler_result
 datapath_sync_unsynced_datapath_handler(
         const struct ovn_unsynced_datapath_map *map,
         const struct ed_type_global_config *global_config,
         struct ovsdb_idl_txn *ovnsb_idl_txn, void *data)
 {
-    enum engine_input_handler_result ret = EN_HANDLED_UNCHANGED;
+    struct engine_input_handler_result ret = EN_HANDLED_UNCHANGED;
     struct ovn_synced_datapaths *synced_datapaths = data;
     struct ovn_unsynced_datapath *udp;
     struct ovn_synced_datapath *sdp;
@@ -340,7 +340,7 @@ datapath_sync_unsynced_datapath_handler(
     if (hmapx_is_empty(&map->new) &&
         hmapx_is_empty(&map->deleted) &&
         hmapx_is_empty(&map->updated)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     struct hmapx_node *n;
@@ -348,7 +348,7 @@ datapath_sync_unsynced_datapath_handler(
         udp = n->data;
         sdp = find_synced_datapath_from_udp(synced_datapaths, udp);
         if (!sdp) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
         hmap_remove(&synced_datapaths->synced_dps, &sdp->hmap_node);
         hmapx_add(&synced_datapaths->deleted, sdp);
@@ -363,13 +363,13 @@ datapath_sync_unsynced_datapath_handler(
         uint32_t tunnel_key;
 
         if (find_synced_datapath_from_udp(synced_datapaths, udp)) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
 
         if (udp->requested_tunnel_key) {
             tunnel_key = udp->requested_tunnel_key;
             if (!ovn_add_tnlid(&synced_datapaths->dp_tnlids, tunnel_key)) {
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
         } else {
             uint32_t hint = 0;
@@ -378,7 +378,7 @@ datapath_sync_unsynced_datapath_handler(
                                             global_config->max_dp_tunnel_id,
                                             &hint);
             if (!tunnel_key) {
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
         }
 
@@ -397,7 +397,7 @@ datapath_sync_unsynced_datapath_handler(
         udp = n->data;
         sdp = find_synced_datapath_from_udp(synced_datapaths, udp);
         if (!sdp || !sdp->sb_dp) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
         if (udp->requested_tunnel_key &&
             udp->requested_tunnel_key != sdp->sb_dp->tunnel_key) {
@@ -405,7 +405,7 @@ datapath_sync_unsynced_datapath_handler(
                            sdp->sb_dp->tunnel_key);
             if (!ovn_add_tnlid(&synced_datapaths->dp_tnlids,
                                udp->requested_tunnel_key)) {
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
             sbrec_datapath_binding_set_tunnel_key(sdp->sb_dp,
                                                   udp->requested_tunnel_key);
@@ -421,7 +421,7 @@ datapath_sync_unsynced_datapath_handler(
     return ret;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 datapath_sync_logical_switch_handler(struct engine_node *node, void *data)
 {
     const struct ovn_unsynced_datapath_map *map =
@@ -435,7 +435,7 @@ datapath_sync_logical_switch_handler(struct engine_node *node, void *data)
                                                    data);
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 datapath_sync_logical_router_handler(struct engine_node *node, void *data)
 {
     const struct ovn_unsynced_datapath_map *map =
@@ -449,7 +449,7 @@ datapath_sync_logical_router_handler(struct engine_node *node, void *data)
                                                    data);
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 datapath_sync_global_config_handler(struct engine_node *node, void *data)
 {
     const struct ed_type_global_config *global_config =
@@ -461,18 +461,18 @@ datapath_sync_global_config_handler(struct engine_node *node, void *data)
         /* If VXLAN mode changes, then the range of datapath tunnel IDs
          * has completely been upended and we need to recompute.
          */
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 datapath_sync_sb_datapath_binding(struct engine_node *node, void *data)
 {
     const struct sbrec_datapath_binding_table *sb_dp_table =
         EN_OVSDB_GET(engine_get_input("SB_datapath_binding", node));
-    enum engine_input_handler_result ret = EN_HANDLED_UNCHANGED;
+    struct engine_input_handler_result ret = EN_HANDLED_UNCHANGED;
     struct ovn_synced_datapaths *synced_datapaths = data;
 
     const struct sbrec_datapath_binding *sb_dp;
@@ -486,7 +486,7 @@ datapath_sync_sb_datapath_binding(struct engine_node *node, void *data)
                  * was deleted by something other than ovn-northd. We need
                  * to recompute in this case.
                  */
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
             continue;
         }
@@ -498,7 +498,7 @@ datapath_sync_sb_datapath_binding(struct engine_node *node, void *data)
                  * something other than ovn-northd added this datapath
                  * binding to the database, and we need to recompute.
                  */
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             } else {
                 if (sdp->pending_sb_dp) {
                     /* Update the existing synced datapath pointer to the safer
@@ -510,7 +510,7 @@ datapath_sync_sb_datapath_binding(struct engine_node *node, void *data)
                     /* Someone inserted a duplicate datapath into SB, do a full
                      * recompute in that case.
                      */
-                    return EN_UNHANDLED;
+                    return EN_UNHANDLED("XXX FIXME");
                 }
             }
             continue;

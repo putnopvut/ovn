@@ -157,7 +157,7 @@ ecmp_nexthop_lookup(struct ovsdb_idl_index *sbrec_ecmp_by_nexthop,
     return retval;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 ecmp_nexthop_mac_binding_handler(struct engine_node *node,
                                  void *data OVS_UNUSED)
 {

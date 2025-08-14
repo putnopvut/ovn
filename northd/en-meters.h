@@ -29,7 +29,7 @@ struct sync_meters_data {
 void *en_sync_meters_init(struct engine_node *, struct engine_arg *);
 void en_sync_meters_cleanup(void *data);
 enum engine_node_state en_sync_meters_run(struct engine_node *, void *data);
-enum engine_input_handler_result
+struct engine_input_handler_result
 sync_meters_nb_acl_handler(struct engine_node *, void *data);
 
 const struct nbrec_meter *fair_meter_lookup_by_name(

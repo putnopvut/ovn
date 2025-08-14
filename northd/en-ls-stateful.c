@@ -138,12 +138,12 @@ en_ls_stateful_run(struct engine_node *node, void *data_)
 }
 
 /* Handler functions. */
-enum engine_input_handler_result
+struct engine_input_handler_result
 ls_stateful_northd_handler(struct engine_node *node, void *data_)
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     if (!northd_has_ls_lbs_in_tracked_data(&northd_data->trk_data) &&
@@ -214,7 +214,7 @@ ls_stateful_northd_handler(struct engine_node *node, void *data_)
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 ls_stateful_port_group_handler(struct engine_node *node, void *data_)
 {
     struct port_group_data *pg_data =
@@ -243,7 +243,7 @@ ls_stateful_port_group_handler(struct engine_node *node, void *data_)
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 ls_stateful_acl_handler(struct engine_node *node, void *data_)
 {
     struct ed_type_ls_stateful *data = data_;

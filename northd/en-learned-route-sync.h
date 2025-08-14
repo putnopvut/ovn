@@ -41,9 +41,9 @@ struct learned_route_sync_data {
     struct learned_routes_tracked_data trk_data;
 };
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 learned_route_sync_northd_change_handler(struct engine_node *, void *data);
-enum engine_input_handler_result
+struct engine_input_handler_result
 learned_route_sync_sb_learned_route_change_handler(struct engine_node *,
                                                    void *data);
 void *en_learned_route_sync_init(struct engine_node *, struct engine_arg *);

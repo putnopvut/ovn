@@ -145,7 +145,7 @@ en_datapath_logical_router_clear_tracked_data(void *data)
     ovn_unsynced_datapath_map_clear_tracked_data(data);
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 en_datapath_logical_router_logical_router_handler(struct engine_node *node,
                                                   void *data)
 {
@@ -160,11 +160,11 @@ en_datapath_logical_router_logical_router_handler(struct engine_node *node,
         udp = ovn_unsynced_datapath_find(map, &nbr->header_.uuid);
 
         if (nbrec_logical_router_is_deleted(nbr) && !udp) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
 
         if (nbrec_logical_router_is_new(nbr) && udp) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
 
         if (udp) {
@@ -319,7 +319,7 @@ en_datapath_synced_logical_router_clear_tracked_data(void *data)
     }
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 en_datapath_synced_logical_router_datapath_sync_handler(
         struct engine_node *node, void *data)
 {
@@ -330,7 +330,7 @@ en_datapath_synced_logical_router_datapath_sync_handler(
     if (hmapx_is_empty(&dps->deleted) &&
         hmapx_is_empty(&dps->new) &&
         hmapx_is_empty(&dps->updated)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     struct hmapx_node *hmapx_node;
@@ -354,7 +354,7 @@ en_datapath_synced_logical_router_datapath_sync_handler(
         }
         lr = ovn_synced_logical_router_find(router_map, &sdp->nb_row->uuid);
         if (!lr) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
         hmap_remove(&router_map->synced_routers, &lr->hmap_node);
         hmapx_add(&router_map->deleted, lr);
@@ -367,7 +367,7 @@ en_datapath_synced_logical_router_datapath_sync_handler(
         }
         lr = ovn_synced_logical_router_find(router_map, &sdp->nb_row->uuid);
         if (!lr) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
         lr->nb = CONTAINER_OF(sdp->nb_row, struct nbrec_logical_router,
                               header_);

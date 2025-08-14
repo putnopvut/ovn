@@ -131,12 +131,12 @@ en_lr_stateful_run(struct engine_node *node, void *data_)
     return EN_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lr_stateful_northd_handler(struct engine_node *node, void *data OVS_UNUSED)
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* This node uses the below data from the en_northd engine node.
@@ -166,12 +166,12 @@ lr_stateful_northd_handler(struct engine_node *node, void *data OVS_UNUSED)
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lr_stateful_lb_data_handler(struct engine_node *node, void *data_)
 {
     struct ed_type_lb_data *lb_data = engine_get_input_data("lb_data", node);
     if (!lb_data->tracked) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     struct lr_stateful_input input_data = lr_stateful_get_input_data(node);
@@ -333,14 +333,14 @@ lr_stateful_lb_data_handler(struct engine_node *node, void *data_)
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lr_stateful_lr_nat_handler(struct engine_node *node, void *data_)
 {
     struct ed_type_lr_nat_data *lr_nat_data =
         engine_get_input_data("lr_nat", node);
 
     if (!lr_nat_has_tracked_data(&lr_nat_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     struct lr_stateful_input input_data = lr_stateful_get_input_data(node);

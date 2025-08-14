@@ -62,7 +62,7 @@ en_sync_from_sb_run(struct engine_node *node, void *data OVS_UNUSED)
     return EN_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 sync_from_sb_northd_handler(struct engine_node *node,
                             void *data OVS_UNUSED)
 {
@@ -76,7 +76,7 @@ sync_from_sb_northd_handler(struct engine_node *node,
          * real change matters to this node is always from the SB DB.) */
         return EN_HANDLED_UNCHANGED;
     }
-    return EN_UNHANDLED;
+    return EN_UNHANDLED("XXX FIXME");
 }
 
 void

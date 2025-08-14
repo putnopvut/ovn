@@ -133,17 +133,17 @@ en_lflow_run(struct engine_node *node, void *data)
     return EN_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lflow_northd_handler(struct engine_node *node,
                      void *data)
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     if (northd_has_lswitches_in_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -156,19 +156,19 @@ lflow_northd_handler(struct engine_node *node,
                                           &northd_data->trk_data.trk_lsps,
                                           &lflow_input,
                                           lflow_data->lflow_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     if (!lflow_handle_northd_lb_changes(
             eng_ctx->ovnsb_idl_txn, &northd_data->trk_data.trk_lbs,
             &lflow_input, lflow_data->lflow_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     return EN_HANDLED_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lflow_lr_stateful_handler(struct engine_node *node, void *data)
 {
     struct ed_type_lr_stateful *lr_sful_data =
@@ -176,7 +176,7 @@ lflow_lr_stateful_handler(struct engine_node *node, void *data)
 
     if (!lr_stateful_has_tracked_data(&lr_sful_data->trk_data)
         || lr_sful_data->trk_data.vip_nats_changed) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -188,20 +188,20 @@ lflow_lr_stateful_handler(struct engine_node *node, void *data)
                                           &lr_sful_data->trk_data,
                                           &lflow_input,
                                           lflow_data->lflow_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     return EN_HANDLED_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lflow_ls_stateful_handler(struct engine_node *node, void *data)
 {
     struct ed_type_ls_stateful *ls_sful_data =
         engine_get_input_data("ls_stateful", node);
 
     if (!ls_stateful_has_tracked_data(&ls_sful_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -213,13 +213,13 @@ lflow_ls_stateful_handler(struct engine_node *node, void *data)
                                           &ls_sful_data->trk_data,
                                           &lflow_input,
                                           lflow_data->lflow_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     return EN_HANDLED_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lflow_multicast_igmp_handler(struct engine_node *node, void *data)
 {
     struct multicast_igmp_data *mcast_igmp_data =
@@ -238,7 +238,7 @@ lflow_multicast_igmp_handler(struct engine_node *node, void *data)
                                 lflow_input.ovn_internal_version_changed,
                                 lflow_input.sbrec_logical_flow_table,
                                 lflow_input.sbrec_logical_dp_group_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     build_igmp_lflows(&mcast_igmp_data->igmp_groups,
@@ -254,13 +254,13 @@ lflow_multicast_igmp_handler(struct engine_node *node, void *data)
                                lflow_input.ovn_internal_version_changed,
                                lflow_input.sbrec_logical_flow_table,
                                lflow_input.sbrec_logical_dp_group_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     return EN_HANDLED_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lflow_group_ecmp_route_change_handler(struct engine_node *node,
                                       void *data OVS_UNUSED)
 {
@@ -269,7 +269,7 @@ lflow_group_ecmp_route_change_handler(struct engine_node *node,
 
     /* If we do not have tracked data we need to recompute. */
     if (!group_ecmp_route_data->tracked) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -296,7 +296,7 @@ lflow_group_ecmp_route_change_handler(struct engine_node *node,
             lflow_input.sbrec_logical_flow_table,
             lflow_input.sbrec_logical_dp_group_table);
         if (!handled) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
     }
 
@@ -318,14 +318,14 @@ lflow_group_ecmp_route_change_handler(struct engine_node *node,
             lflow_input.sbrec_logical_flow_table,
             lflow_input.sbrec_logical_dp_group_table);
         if (!handled) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
     }
 
     return EN_HANDLED_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lflow_ic_learned_svc_mons_handler(struct engine_node *node,
                                   void *data)
 {
@@ -352,7 +352,7 @@ lflow_ic_learned_svc_mons_handler(struct engine_node *node,
             lflow_input.ovn_internal_version_changed,
             lflow_input.sbrec_logical_flow_table,
             lflow_input.sbrec_logical_dp_group_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     build_lswitch_arp_nd_ic_learned_svc_mon(
@@ -370,7 +370,7 @@ lflow_ic_learned_svc_mons_handler(struct engine_node *node,
             lflow_input.ovn_internal_version_changed,
             lflow_input.sbrec_logical_flow_table,
             lflow_input.sbrec_logical_dp_group_table)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     return EN_HANDLED_UPDATED;

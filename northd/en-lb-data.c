@@ -138,7 +138,7 @@ en_lb_data_clear_tracked_data(void *data)
 
 
 /* Handler functions. */
-enum engine_input_handler_result
+struct engine_input_handler_result
 lb_data_load_balancer_handler(struct engine_node *node, void *data)
 {
     const struct nbrec_load_balancer_table *nb_lb_table =
@@ -220,11 +220,11 @@ lb_data_load_balancer_handler(struct engine_node *node, void *data)
             if (routable != lb->routable) {
                 /* If routable is toggled trigger a full recompute.
                  */
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
             if (neigh_mode != lb->neigh_mode) {
                 /* If neigh_mode is updated trigger a full recompute. */
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
         }
     }
@@ -232,7 +232,7 @@ lb_data_load_balancer_handler(struct engine_node *node, void *data)
     return EN_HANDLED_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lb_data_load_balancer_group_handler(struct engine_node *node, void *data)
 {
     struct ed_type_lb_data *lb_data = (struct ed_type_lb_data *) data;
@@ -366,7 +366,7 @@ lb_data_handle_updated_logical_switch(const struct nbrec_logical_switch *nbs,
     return true;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lb_data_synced_logical_switch_handler(struct engine_node *node, void *data)
 {
     struct ed_type_lb_data *lb_data = (struct ed_type_lb_data *) data;
@@ -445,7 +445,7 @@ lb_data_handle_updated_logical_router(const struct nbrec_logical_router *nbr,
     return true;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 lb_data_synced_logical_router_handler(struct engine_node *node, void *data)
 {
     struct ed_type_lb_data *lb_data = (struct ed_type_lb_data *) data;

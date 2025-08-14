@@ -125,7 +125,7 @@ datapath_unsynced_new_logical_switch_handler(
     return udp;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 datapath_logical_switch_handler(struct engine_node *node, void *data)
 {
     const struct nbrec_logical_switch_table *nb_ls_table =
@@ -141,7 +141,7 @@ datapath_logical_switch_handler(struct engine_node *node, void *data)
 
         if (nbrec_logical_switch_is_new(nbs)) {
             if (udp) {
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
             udp = datapath_unsynced_new_logical_switch_handler(nbs,
                                                                global_config,
@@ -149,13 +149,13 @@ datapath_logical_switch_handler(struct engine_node *node, void *data)
             hmapx_add(&map->new, udp);
         } else if (nbrec_logical_switch_is_deleted(nbs)) {
             if (!udp) {
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
             hmap_remove(&map->dps, &udp->hmap_node);
             hmapx_add(&map->deleted, udp);
         } else {
             if (!udp) {
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
 
             udp->requested_tunnel_key = get_requested_tunnel_key(
@@ -323,7 +323,7 @@ en_datapath_synced_logical_switch_clear_tracked_data(void *data)
 }
 
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 en_datapath_synced_logical_switch_datapath_sync_handler(
         struct engine_node *node, void *data)
 {
@@ -334,7 +334,7 @@ en_datapath_synced_logical_switch_datapath_sync_handler(
     if (hmapx_is_empty(&dps->deleted) &&
         hmapx_is_empty(&dps->new) &&
         hmapx_is_empty(&dps->updated)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     struct hmapx_node *hmapx_node;
@@ -358,7 +358,7 @@ en_datapath_synced_logical_switch_datapath_sync_handler(
         }
         lsw = ovn_synced_logical_switch_find(switch_map, &sdp->nb_row->uuid);
         if (!lsw) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
         hmap_remove(&switch_map->synced_switches, &lsw->hmap_node);
         hmapx_add(&switch_map->deleted, lsw);
@@ -371,7 +371,7 @@ en_datapath_synced_logical_switch_datapath_sync_handler(
         }
         lsw = ovn_synced_logical_switch_find(switch_map, &sdp->nb_row->uuid);
         if (!lsw) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
         lsw->nb = CONTAINER_OF(sdp->nb_row, struct nbrec_logical_switch,
                                header_);

@@ -460,7 +460,7 @@ handle_deleted_route(struct group_ecmp_route_data *data,
     return true;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 group_ecmp_route_learned_route_change_handler(struct engine_node *eng_node,
                                               void *_data)
 {
@@ -470,7 +470,7 @@ group_ecmp_route_learned_route_change_handler(struct engine_node *eng_node,
 
     if (!learned_route_data->tracked) {
         data->tracked = false;
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     data->tracked = true;
@@ -484,7 +484,7 @@ group_ecmp_route_learned_route_change_handler(struct engine_node *eng_node,
         pr = hmapx_node->data;
         if (!handle_deleted_route(data, pr, &updated_routes)) {
             hmapx_destroy(&updated_routes);
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
     }
 

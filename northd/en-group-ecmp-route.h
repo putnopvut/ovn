@@ -93,7 +93,7 @@ void en_group_ecmp_route_clear_tracked_data(void *data);
 enum engine_node_state en_group_ecmp_route_run(struct engine_node *,
                                                void *data);
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 group_ecmp_route_learned_route_change_handler(struct engine_node *,
                                               void *data);
 

@@ -131,7 +131,7 @@ advertised_route_table_sync(
     const struct hmap *dynamic_routes,
     struct advertised_route_sync_data *data);
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 advertised_route_sync_lr_stateful_change_handler(struct engine_node *node,
                                                  void *data_)
 {
@@ -148,21 +148,21 @@ advertised_route_sync_lr_stateful_change_handler(struct engine_node *node,
         lr_stateful_rec = hmapx_node->data;
         if (uuidset_contains(&data->nb_lr,
                              &lr_stateful_rec->nbr_uuid)) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
     }
 
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 advertised_route_sync_northd_change_handler(struct engine_node *node,
                                             void *data_)
 {
     struct advertised_route_sync_data *data = data_;
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* We indirectly use northd_data->ls_ports if we announce host routes.
@@ -174,21 +174,21 @@ advertised_route_sync_northd_change_handler(struct engine_node *node,
         op = hmapx_node->data;
         if (uuidset_contains(&data->nb_ls,
                              &op->od->nbs->header_.uuid)) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
     }
     HMAPX_FOR_EACH (hmapx_node, &northd_data->trk_data.trk_lsps.updated) {
         op = hmapx_node->data;
         if (uuidset_contains(&data->nb_ls,
                              &op->od->nbs->header_.uuid)) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
     }
     HMAPX_FOR_EACH (hmapx_node, &northd_data->trk_data.trk_lsps.deleted) {
         op = hmapx_node->data;
         if (uuidset_contains(&data->nb_ls,
                              &op->od->nbs->header_.uuid)) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
     }
 

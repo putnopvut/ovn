@@ -547,7 +547,7 @@ en_port_group_run(struct engine_node *node, void *data_)
     return EN_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 port_group_nb_port_group_handler(struct engine_node *node, void *data_)
 {
     struct port_group_input input_data = port_group_get_input_data(node);

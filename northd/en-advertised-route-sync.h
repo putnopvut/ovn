@@ -28,10 +28,10 @@ struct advertised_route_sync_data {
   struct uuidset nb_ls;
 };
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 advertised_route_sync_lr_stateful_change_handler(struct engine_node *,
                                                  void *data);
-enum engine_input_handler_result
+struct engine_input_handler_result
 advertised_route_sync_northd_change_handler(struct engine_node *,
                                                  void *data);
 void *en_advertised_route_sync_init(struct engine_node *, struct engine_arg *);

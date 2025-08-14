@@ -206,7 +206,7 @@ en_global_config_clear_tracked_data(void *data)
     config_data->tracked_data.chassis_features_changed = false;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 global_config_nb_global_handler(struct engine_node *node, void *data)
 {
     const struct nbrec_nb_global_table *nb_global_table =
@@ -220,13 +220,13 @@ global_config_nb_global_handler(struct engine_node *node, void *data)
     const struct nbrec_nb_global *nb =
         nbrec_nb_global_table_first(nb_global_table);
     if (!nb) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     const struct sbrec_sb_global *sb =
         sbrec_sb_global_table_first(sb_global_table);
     if (!sb) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* We are only interested in ipsec and options column. */
@@ -251,36 +251,36 @@ global_config_nb_global_handler(struct engine_node *node, void *data)
     /* Check if svc_monitor_mac has changed or not. */
     if (config_out_of_sync(&nb->options, &config_data->nb_options,
                            "svc_monitor_mac", true)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* Check if max_tunid has changed or not. */
     if (config_out_of_sync(&nb->options, &config_data->nb_options,
                            "max_tunid", true)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* Check if mac_prefix has changed or not. */
     if (config_out_of_sync(&nb->options, &config_data->nb_options,
                            "mac_prefix", true)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* Check if ignore_chassis_features has changed or not. */
     if (config_out_of_sync(&nb->options, &config_data->nb_options,
                            "ignore_chassis_features", false)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* Check if northd_internal_version has changed or not. */
     if (config_out_of_sync(&nb->options, &config_data->nb_options,
                            "northd_internal_version", false)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     if (config_out_of_sync(&nb->options, &config_data->nb_options,
                            "vxlan_mode", false)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     if (check_nb_options_out_of_sync(nb, config_data, sampling_apps)) {
@@ -295,7 +295,7 @@ global_config_nb_global_handler(struct engine_node *node, void *data)
     return EN_HANDLED_UPDATED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 global_config_sb_global_handler(struct engine_node *node, void *data)
 {
     const struct sbrec_sb_global_table *sb_global_table =
@@ -304,20 +304,20 @@ global_config_sb_global_handler(struct engine_node *node, void *data)
     const struct sbrec_sb_global *sb =
         sbrec_sb_global_table_first(sb_global_table);
     if (!sb) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     struct ed_type_global_config *config_data = data;
 
     if (!smap_equal(&sb->options, &config_data->sb_options)) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     /* No need to update the engine node. */
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 global_config_sb_chassis_handler(struct engine_node *node, void *data)
 {
     struct ed_type_global_config *config_data = data;
@@ -331,13 +331,13 @@ global_config_sb_chassis_handler(struct engine_node *node, void *data)
             || sbrec_chassis_is_deleted(chassis)
             || sbrec_chassis_is_updated(chassis,
                                         SBREC_CHASSIS_COL_ENCAPS)) {
-            return EN_UNHANDLED;
+            return EN_UNHANDLED("XXX FIXME");
         }
 
         for (size_t i = 0; i < chassis->n_encaps; i++) {
             if (sbrec_encap_row_get_seqno(chassis->encaps[i],
                                           OVSDB_IDL_CHANGE_MODIFY) > 0) {
-                return EN_UNHANDLED;
+                return EN_UNHANDLED("XXX FIXME");
             }
         }
     }
@@ -380,7 +380,7 @@ global_config_sb_chassis_handler(struct engine_node *node, void *data)
 
 /* generic global config handler for any engine node which has global_config
  * has an input node . */
-enum engine_input_handler_result
+struct engine_input_handler_result
 node_global_config_handler(struct engine_node *node, void *data OVS_UNUSED)
 {
     struct ed_type_global_config *global_config =
@@ -389,13 +389,13 @@ node_global_config_handler(struct engine_node *node, void *data OVS_UNUSED)
     if (!global_config->tracked
         || global_config->tracked_data.chassis_features_changed
         || global_config->tracked_data.nb_options_changed) {
-        return EN_UNHANDLED;
+        return EN_UNHANDLED("XXX FIXME");
     }
 
     return EN_HANDLED_UNCHANGED;
 }
 
-enum engine_input_handler_result
+struct engine_input_handler_result
 global_config_nb_logical_switch_handler(struct engine_node *node,
                                         void *data)
 {
@@ -404,7 +404,7 @@ global_config_nb_logical_switch_handler(struct engine_node *node,
         EN_OVSDB_GET(engine_get_input("NB_logical_switch", node));
     const struct nbrec_nb_global *nb = nbrec_nb_global_table_first(
                 EN_OVSDB_GET(engine_get_input("NB_nb_global", node)));
-    enum engine_input_handler_result result;
+    struct engine_input_handler_result result;
 
     bool ic_vxlan_mode = false;
     const struct nbrec_logical_switch *nbs;

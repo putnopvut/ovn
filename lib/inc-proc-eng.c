@@ -266,7 +266,7 @@ engine_get_input_data(const char *input_name, struct engine_node *node)
 
 void
 engine_add_input(struct engine_node *node, struct engine_node *input,
-                 enum engine_input_handler_result (*change_handler)
+                 struct engine_input_handler_result (*change_handler)
                      (struct engine_node *, void *))
 {
     ovs_assert(node->n_inputs < ENGINE_MAX_INPUT);
@@ -278,7 +278,7 @@ engine_add_input(struct engine_node *node, struct engine_node *input,
 void
 engine_add_input_with_compute_debug(
         struct engine_node *node, struct engine_node *input,
-        enum engine_input_handler_result (*change_handler)
+        struct engine_input_handler_result (*change_handler)
             (struct engine_node *, void *),
         void (*get_compute_failure_info)(struct engine_node *))
 {
@@ -469,7 +469,7 @@ engine_compute(struct engine_node *node, bool recompute_allowed)
              * the node handler.
              */
             long long int now = time_msec();
-            enum engine_input_handler_result handled;
+            struct engine_input_handler_result handled;
             handled = node->inputs[i].change_handler(node, node->data);
             long long int delta_time = time_msec() - now;
             if (delta_time > engine_compute_log_timeout_msec) {
@@ -481,18 +481,20 @@ engine_compute(struct engine_node *node, bool recompute_allowed)
                 VLOG_DBG("node: %s, handler for input %s took %lldms",
                          node->name, input_node->name, delta_time);
             }
-            if (handled == EN_UNHANDLED) {
+            if (!EITHER_SUCCESS(handled)) {
                 input_node->get_compute_failure_info(input_node);
                 engine_recompute(node, recompute_allowed,
-                                 "failed handler for input %s",
-                                 input_node->name);
+                                 "failed handler for input %s: %s",
+                                 input_node->name,
+                                 EITHER_GET_FAILURE(handled));
+                free(handled.result.failure);
                 return (node->state != EN_CANCELED);
             } else if (!engine_node_changed(node)) {
                 /* We only want to update the state if the node is unchanged.
                  * Otherwise, handlers might change the state from EN_UPDATED
                  * back to EN_UNCHANGED.
                  */
-                engine_set_node_state(node, (enum engine_node_state) handled,
+                engine_set_node_state(node, EITHER_GET_SUCCESS(handled),
                                       "input %s updated", input_node->name);
             }
         }

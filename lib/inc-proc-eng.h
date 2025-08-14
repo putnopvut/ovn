@@ -152,6 +152,7 @@
 #include <stdint.h>
 
 #include "compiler.h"
+#include "ovn-util.h"
 
 struct engine_context {
     struct ovsdb_idl_txn *ovs_idl_txn;
@@ -184,11 +185,15 @@ enum engine_node_state {
     EN_STATE_MAX,
 };
 
-enum engine_input_handler_result {
-    EN_UNHANDLED = -1,
-    EN_HANDLED_UPDATED = EN_UPDATED,
-    EN_HANDLED_UNCHANGED = EN_UNCHANGED,
-};
+EITHER(engine_input_handler_result, enum engine_node_state, char *);
+
+#define EN_HANDLED_UPDATED \
+    EITHER_SET_SUCCESS(engine_input_handler_result, EN_UPDATED)
+#define EN_HANDLED_UNCHANGED \
+    EITHER_SET_SUCCESS(engine_input_handler_result, EN_UNCHANGED)
+#define EN_UNHANDLED(FMT, ...) \
+    EITHER_SET_FAILURE(engine_input_handler_result, \
+                       xasprintf(FMT __VA_OPT__(,) __VA_ARGS__))
 
 struct engine_node_input {
     /* The input node. */
@@ -207,7 +212,7 @@ struct engine_node_input {
      * handler needs to use the txn pointers returned by engine_get_context(),
      * and the pointers are NULL, the change handler MUST return EN_UNHANDLED.
      */
-    enum engine_input_handler_result (*change_handler)
+    struct engine_input_handler_result (*change_handler)
         (struct engine_node *node, void *data);
 };
 
@@ -311,11 +316,11 @@ void *engine_get_input_data(const char *input_name, struct engine_node *);
  * be able to process the change incrementally, and will fall back to call
  * the run method to recompute. */
 void engine_add_input(struct engine_node *node, struct engine_node *input,
-                      enum engine_input_handler_result (*change_handler)
+                      struct engine_input_handler_result (*change_handler)
                           (struct engine_node *, void *));
 void engine_add_input_with_compute_debug(
         struct engine_node *node, struct engine_node *input,
-        enum engine_input_handler_result (*change_handler)
+        struct engine_input_handler_result (*change_handler)
             (struct engine_node *, void *),
         void (*get_compute_failure_info)(struct engine_node *));
 
@@ -399,7 +404,7 @@ struct ovsdb_idl_index * engine_ovsdb_node_get_index(struct engine_node *,
                                                      const char *name);
 
 /* Any engine node can use this function for no-op handlers. */
-static inline enum engine_input_handler_result
+static inline struct engine_input_handler_result
 engine_noop_handler(struct engine_node *node OVS_UNUSED, void *data OVS_UNUSED)
 {
     return EN_HANDLED_UNCHANGED;
