@@ -220,11 +220,13 @@ lb_data_load_balancer_handler(struct engine_node *node, void *data)
             if (routable != lb->routable) {
                 /* If routable is toggled trigger a full recompute.
                  */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("'routable' value has changed for load "
+                                    "balancer %s", lb->nlb->name);
             }
             if (neigh_mode != lb->neigh_mode) {
                 /* If neigh_mode is updated trigger a full recompute. */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("'neigh_mode' value has changed for load "
+                                    "balancer %s", lb->nlb->name);
             }
         }
     }

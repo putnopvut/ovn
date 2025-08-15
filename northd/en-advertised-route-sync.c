@@ -148,7 +148,8 @@ advertised_route_sync_lr_stateful_change_handler(struct engine_node *node,
         lr_stateful_rec = hmapx_node->data;
         if (uuidset_contains(&data->nb_lr,
                              &lr_stateful_rec->nbr_uuid)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Logical router "UUID_FMT" is in our uuidset",
+                                UUID_ARGS(&lr_stateful_rec->nbr_uuid));
         }
     }
 
@@ -162,7 +163,7 @@ advertised_route_sync_northd_change_handler(struct engine_node *node,
     struct advertised_route_sync_data *data = data_;
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd hs no tracked data");
     }
 
     /* We indirectly use northd_data->ls_ports if we announce host routes.
@@ -174,21 +175,24 @@ advertised_route_sync_northd_change_handler(struct engine_node *node,
         op = hmapx_node->data;
         if (uuidset_contains(&data->nb_ls,
                              &op->od->nbs->header_.uuid)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("New Logical switch port %s has its datapath "
+                                "in our uuidset", op->json_key);
         }
     }
     HMAPX_FOR_EACH (hmapx_node, &northd_data->trk_data.trk_lsps.updated) {
         op = hmapx_node->data;
         if (uuidset_contains(&data->nb_ls,
                              &op->od->nbs->header_.uuid)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Updated Logical switch port %s has its "
+                                "datapath in our uuidset", op->json_key);
         }
     }
     HMAPX_FOR_EACH (hmapx_node, &northd_data->trk_data.trk_lsps.deleted) {
         op = hmapx_node->data;
         if (uuidset_contains(&data->nb_ls,
                              &op->od->nbs->header_.uuid)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Deleted Logical switch port %s has its "
+                                "datapath in our uuidset", op->json_key);
         }
     }
 

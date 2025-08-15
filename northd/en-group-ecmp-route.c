@@ -470,7 +470,7 @@ group_ecmp_route_learned_route_change_handler(struct engine_node *eng_node,
 
     if (!learned_route_data->tracked) {
         data->tracked = false;
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("learned route data has no tracked data");
     }
 
     data->tracked = true;

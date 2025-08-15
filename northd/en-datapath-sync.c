@@ -340,7 +340,7 @@ datapath_sync_unsynced_datapath_handler(
     if (hmapx_is_empty(&map->new) &&
         hmapx_is_empty(&map->deleted) &&
         hmapx_is_empty(&map->updated)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Unsynced datapaths provided no tracked data");
     }
 
     struct hmapx_node *n;
@@ -348,7 +348,8 @@ datapath_sync_unsynced_datapath_handler(
         udp = n->data;
         sdp = find_synced_datapath_from_udp(synced_datapaths, udp);
         if (!sdp) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Cannot find matching synced datapath for "
+                                "deleted unsynced datapath %s", udp->name);
         }
         hmap_remove(&synced_datapaths->synced_dps, &sdp->hmap_node);
         hmapx_add(&synced_datapaths->deleted, sdp);
@@ -363,13 +364,16 @@ datapath_sync_unsynced_datapath_handler(
         uint32_t tunnel_key;
 
         if (find_synced_datapath_from_udp(synced_datapaths, udp)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Found matching synced datapath for new"
+                                "unsynced datapath %s", udp->name);
         }
 
         if (udp->requested_tunnel_key) {
             tunnel_key = udp->requested_tunnel_key;
             if (!ovn_add_tnlid(&synced_datapaths->dp_tnlids, tunnel_key)) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Failed to add requested tunnel key "
+                                    "%"PRIu32" for new unsynced datapath %s",
+                                    udp->requested_tunnel_key, udp->name);
             }
         } else {
             uint32_t hint = 0;
@@ -378,7 +382,8 @@ datapath_sync_unsynced_datapath_handler(
                                             global_config->max_dp_tunnel_id,
                                             &hint);
             if (!tunnel_key) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Failed to allocate new tunnel key for "
+                                    "new unsynced datapath %s", udp->name);
             }
         }
 
@@ -397,7 +402,8 @@ datapath_sync_unsynced_datapath_handler(
         udp = n->data;
         sdp = find_synced_datapath_from_udp(synced_datapaths, udp);
         if (!sdp || !sdp->sb_dp) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Unable to find matching synced datapath for "
+                                "updated unsynced datapath %s", udp->name);
         }
         if (udp->requested_tunnel_key &&
             udp->requested_tunnel_key != sdp->sb_dp->tunnel_key) {
@@ -405,7 +411,10 @@ datapath_sync_unsynced_datapath_handler(
                            sdp->sb_dp->tunnel_key);
             if (!ovn_add_tnlid(&synced_datapaths->dp_tnlids,
                                udp->requested_tunnel_key)) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Unable to update requested tunnel key "
+                                    "from %"PRId64" to %"PRIu32" for unsynced "
+                                    "datapath %s", sdp->sb_dp->tunnel_key,
+                                    udp->requested_tunnel_key, udp->name);
             }
             sbrec_datapath_binding_set_tunnel_key(sdp->sb_dp,
                                                   udp->requested_tunnel_key);
@@ -461,7 +470,7 @@ datapath_sync_global_config_handler(struct engine_node *node, void *data)
         /* If VXLAN mode changes, then the range of datapath tunnel IDs
          * has completely been upended and we need to recompute.
          */
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("VXLAN mode has changed");
     }
 
     return EN_HANDLED_UNCHANGED;
@@ -486,7 +495,9 @@ datapath_sync_sb_datapath_binding(struct engine_node *node, void *data)
                  * was deleted by something other than ovn-northd. We need
                  * to recompute in this case.
                  */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("We still have a synced datapath "UUID_FMT
+                                    " even though it should have been deleted",
+                                    UUID_ARGS(&sdp->sb_dp->header_.uuid));
             }
             continue;
         }
@@ -498,7 +509,9 @@ datapath_sync_sb_datapath_binding(struct engine_node *node, void *data)
                  * something other than ovn-northd added this datapath
                  * binding to the database, and we need to recompute.
                  */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Cannot find synced datapath for new SB "
+                                    "datapath binding "UUID_FMT,
+                                    UUID_ARGS(&sb_dp->header_.uuid));
             } else {
                 if (sdp->pending_sb_dp) {
                     /* Update the existing synced datapath pointer to the safer
@@ -510,7 +523,9 @@ datapath_sync_sb_datapath_binding(struct engine_node *node, void *data)
                     /* Someone inserted a duplicate datapath into SB, do a full
                      * recompute in that case.
                      */
-                    return EN_UNHANDLED("XXX FIXME");
+                    return EN_UNHANDLED("Duplicate datapath detected for SB "
+                                        "datapath binding "UUID_FMT,
+                                        UUID_ARGS(&sb_dp->header_.uuid));
                 }
             }
             continue;

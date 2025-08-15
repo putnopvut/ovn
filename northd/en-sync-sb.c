@@ -129,7 +129,8 @@ sync_to_sb_addr_set_nb_address_set_handler(struct engine_node *node,
                                               nb_address_set_table) {
         if (nbrec_address_set_is_new(nb_addr_set) ||
                 nbrec_address_set_is_deleted(nb_addr_set)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Address set %s is new or deleted",
+                                nb_addr_set->name);
         }
     }
 
@@ -144,7 +145,8 @@ sync_to_sb_addr_set_nb_address_set_handler(struct engine_node *node,
             sb_address_set_lookup_by_name(sbrec_address_set_by_name,
                                           nb_addr_set->name);
         if (!sb_addr_set) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Cannot find southbound address set %s",
+                                nb_addr_set->name);
         }
         struct sorted_array addrs =
             sorted_array_from_dbrec(nb_addr_set, addresses);
@@ -165,7 +167,8 @@ sync_to_sb_addr_set_nb_port_group_handler(struct engine_node *node,
     NBREC_PORT_GROUP_TABLE_FOR_EACH_TRACKED (nb_pg, nb_port_group_table) {
         if (nbrec_port_group_is_new(nb_pg) ||
                 nbrec_port_group_is_deleted(nb_pg)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Port group %s is new or deleted",
+                                 nb_pg->name);
         }
     }
 
@@ -180,7 +183,8 @@ sync_to_sb_addr_set_nb_port_group_handler(struct engine_node *node,
                                           ipv4_addrs_name);
         if (!sb_addr_set_v4) {
             free(ipv4_addrs_name);
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Cannot find SB IPv4 address set for port "
+                                "group %s", nb_pg->name);
         }
         char *ipv6_addrs_name = xasprintf("%s_ip6", nb_pg->name);
         const struct sbrec_address_set *sb_addr_set_v6 =
@@ -189,7 +193,8 @@ sync_to_sb_addr_set_nb_port_group_handler(struct engine_node *node,
         if (!sb_addr_set_v6) {
             free(ipv4_addrs_name);
             free(ipv6_addrs_name);
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Cannot find SB IPv6 address set for port "
+                                "group %s", nb_pg->name);
         }
 
         struct svec ipv4_addrs = SVEC_EMPTY_INITIALIZER;
@@ -317,7 +322,7 @@ sync_to_sb_lb_northd_handler(struct engine_node *node, void *data_)
 
     if (!northd_has_tracked_data(&nd->trk_data)) {
         /* Return false if no tracking data. */
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has no tracked data");
     }
 
     if (!northd_has_lbs_in_tracked_data(&nd->trk_data)) {
@@ -362,7 +367,8 @@ sync_to_sb_lb_sb_load_balancer(struct engine_node *node, void *data_)
         }
 
         if (!sb_lb_table_find(&data->sb_lbs.entries, &sb_lb->header_.uuid)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Unable to find SB LB record for inserted "
+                                "load balancer %s", sb_lb->name);
         }
     }
     return EN_HANDLED_UNCHANGED;
@@ -407,10 +413,11 @@ struct engine_input_handler_result
 sync_to_sb_pb_northd_handler(struct engine_node *node, void *data OVS_UNUSED)
 {
     struct northd_data *nd = engine_get_input_data("northd", node);
-    if (!northd_has_tracked_data(&nd->trk_data) ||
-            northd_has_lbs_in_tracked_data(&nd->trk_data)) {
+    if (!northd_has_tracked_data(&nd->trk_data)) {
+        return EN_UNHANDLED("northd has no tracked data");
+    } else if (northd_has_lbs_in_tracked_data(&nd->trk_data)) {
         /* Return false if no tracking data or if lbs changed. */
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has load balancers in its tracked data");
     }
 
     struct ed_type_lr_stateful *lr_stateful_data =

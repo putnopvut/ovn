@@ -221,7 +221,7 @@ northd_lb_data_handler(struct engine_node *node, void *data)
     struct ed_type_lb_data *lb_data = engine_get_input_data("lb_data", node);
 
     if (!lb_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("lb_data has no tracked data");
     }
 
     struct northd_data *nd = data;
@@ -247,9 +247,10 @@ northd_global_config_handler(struct engine_node *node, void *data OVS_UNUSED)
     struct ed_type_global_config *global_config =
         engine_get_input_data("global_config", node);
 
-    if (!global_config->tracked
-        || global_config->tracked_data.nb_options_changed) {
-        return EN_UNHANDLED("XXX FIXME");
+    if (!global_config->tracked) {
+        return EN_UNHANDLED("global config has no tracked data");
+    } else if (global_config->tracked_data.nb_options_changed) {
+        return EN_UNHANDLED("global config nb options has changed");
     }
 
     return EN_HANDLED_UNCHANGED;
@@ -283,7 +284,7 @@ route_policies_northd_change_handler(struct engine_node *node,
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has no tracked data");
     }
 
     /* This node uses the below data from the en_northd engine node.
@@ -334,7 +335,7 @@ routes_northd_change_handler(struct engine_node *node,
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has no tracked data");
     }
 
     /* This node uses the below data from the en_northd engine node.
@@ -407,7 +408,7 @@ bfd_sync_northd_change_handler(struct engine_node *node, void *data OVS_UNUSED)
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has no tracked data");
     }
 
     /* This node uses the below data from the en_northd engine node.

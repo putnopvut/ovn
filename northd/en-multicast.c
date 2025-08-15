@@ -150,11 +150,12 @@ multicast_igmp_northd_handler(struct engine_node *node, void *data OVS_UNUSED)
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has no tracked data");
     }
 
     if (hmapx_count(&northd_data->trk_data.trk_switches.deleted)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has deleted logical switches in its "
+                            "tracked data");
     }
 
     /* This node uses the below data from the en_northd engine node.

@@ -1704,7 +1704,7 @@ runtime_data_sb_port_binding_handler(struct engine_node *node, void *data)
     struct engine_input_handler_result result = EN_HANDLED_UNCHANGED;
     init_binding_ctx(node, rt_data, &b_ctx_in, &b_ctx_out);
     if (!b_ctx_in.chassis_rec) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Binding context has no chassis record");
     }
 
     rt_data->tracked = true;
@@ -1742,7 +1742,9 @@ runtime_data_sb_datapath_binding_handler(struct engine_node *node OVS_UNUSED,
         if (sbrec_datapath_binding_is_deleted(dp)) {
             if (get_local_datapath(&rt_data->local_datapaths,
                                    dp->tunnel_key)) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Cannot find local datapath for deleted "
+                                    "datapath binding "UUID_FMT,
+                                    UUID_ARGS(&dp->header_.uuid));
             }
 
         }
@@ -1756,7 +1758,9 @@ runtime_data_sb_datapath_binding_handler(struct engine_node *node OVS_UNUSED,
              */
             if (get_local_datapath_no_hash(&rt_data->local_datapaths,
                                            dp->tunnel_key)) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Cannot find local datapath for updated "
+                                    "datapath binding "UUID_FMT,
+                                    UUID_ARGS(&dp->header_.uuid));
             }
         }
     }
@@ -2304,7 +2308,7 @@ port_groups_runtime_data_handler(struct engine_node *node, void *data)
     struct engine_input_handler_result result;
 
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Runtime data has no tracked data");
     }
 
     if (hmap_is_empty(&rt_data->tracked_dp_bindings)) {
@@ -2429,7 +2433,9 @@ ct_zones_datapath_binding_handler(struct engine_node *node, void *data)
         if (sbrec_datapath_binding_is_deleted(dp) ||
             sbrec_datapath_binding_is_new(dp)) {
             /* Fall back to full recompute of ct_zones engine. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Datapath binding "UUID_FMT" is either "
+                                "deleted or new",
+                                UUID_ARGS(&dp->header_.uuid));
         }
 
         if (!ct_zone_handle_dp_update(&ct_zones_data->ctx, local_dp,
@@ -2451,7 +2457,7 @@ ct_zones_runtime_data_handler(struct engine_node *node, void *data)
 
     /* There is no tracked data. Fall back to full recompute of ct_zones. */
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("runtime data has no tracked data");
     }
 
     struct ed_type_ct_zones *ct_zones_data = data;
@@ -2468,7 +2474,8 @@ ct_zones_runtime_data_handler(struct engine_node *node, void *data)
     HMAP_FOR_EACH (tdp, node, tracked_dp_bindings) {
         if (tdp->tracked_type == TRACKED_RESOURCE_NEW) {
             /* A new datapath has been added. Fall back to full recompute. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Tracked datapath "UUID_FMT" is new",
+                                UUID_ARGS(&tdp->dp->header_.uuid));
         }
 
         struct shash_node *shash_node;
@@ -2927,7 +2934,7 @@ lb_data_template_var_handler(struct engine_node *node, void *data)
     struct engine_input_handler_result result = EN_HANDLED_UNCHANGED;
 
     if (!tv_data->change_tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Template var data has no tracked data");
     }
 
     const struct lb_data_ctx_in ctx_in = {
@@ -2995,7 +3002,7 @@ lb_data_runtime_data_handler(struct engine_node *node, void *data OVS_UNUSED)
     /* There are no tracked data. Fall back to full recompute of
      * lb_ct_tuple. */
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("runtime data has no tracked data");
     }
 
     struct hmap *tracked_dp_bindings = &rt_data->tracked_dp_bindings;
@@ -3323,7 +3330,7 @@ mac_cache_runtime_data_handler(struct engine_node *node, void *data OVS_UNUSED)
 
     /* There are no tracked data. Fall back to full recompute. */
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("runtime data has no tracked data");
     }
 
     size_t previous_mb_size = hmap_count(&cache_data->mac_bindings);
@@ -4084,7 +4091,8 @@ lflow_output_flow_sample_collector_set_handler(struct engine_node *node,
             flow_collector_ids_clear(&lfo->collector_ids);
             flow_collector_ids_init_from_table(&lfo->collector_ids,
                                                flow_collector_table);
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Flow sample collector set bridge is set to "
+                                "br_int");
         }
     }
 
@@ -4243,7 +4251,7 @@ lflow_output_addr_sets_handler(struct engine_node *node, void *data)
     struct engine_input_handler_result result = EN_HANDLED_UNCHANGED;
 
     if (!as_data->change_tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("address sets have no tracked data");
     }
 
     SSET_FOR_EACH (ref_name, &as_data->deleted) {
@@ -4311,7 +4319,7 @@ lflow_output_port_groups_handler(struct engine_node *node, void *data)
     struct engine_input_handler_result result = EN_HANDLED_UNCHANGED;
 
     if (!pg_data->change_tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("port groups have no tracked data");
     }
 
     SSET_FOR_EACH (ref_name, &pg_data->deleted) {
@@ -4370,7 +4378,7 @@ lflow_output_template_vars_handler(struct engine_node *node, void *data)
     struct engine_input_handler_result result = EN_HANDLED_UNCHANGED;
 
     if (!tv_data->change_tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Template vars have no tracked data");
     }
 
     SSET_FOR_EACH (res_name, &tv_data->deleted) {
@@ -4423,7 +4431,7 @@ lflow_output_runtime_data_handler(struct engine_node *node,
     /* There is no tracked data. Fall back to full recompute of
      * flow_output. */
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("runtime data has no tracked data");
     }
 
     struct hmap *tracked_dp_bindings = &rt_data->tracked_dp_bindings;
@@ -4467,7 +4475,7 @@ lflow_output_lb_data_handler(struct engine_node *node, void *data)
     struct ed_type_lb_data *lb_data = engine_get_input_data("lb_data", node);
 
     if (!lb_data->change_tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Load balancer data has no tracked data");
     }
 
     struct lflow_ctx_in l_ctx_in;
@@ -4795,7 +4803,8 @@ pflow_output_sb_port_binding_handler(struct engine_node *node,
         /* Trigger a full recompute if type column is updated. */
         if (sbrec_port_binding_is_updated(pb, SBREC_PORT_BINDING_COL_TYPE)) {
             destroy_physical_ctx(&p_ctx);
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Port binding %s's type is updated",
+                                pb->logical_port);
         }
         bool removed = sbrec_port_binding_is_deleted(pb);
         if (!physical_handle_flows_for_lport(pb, removed, &p_ctx,
@@ -4839,7 +4848,8 @@ pflow_output_runtime_data_handler(struct engine_node *node, void *data)
     /* There is no tracked data. Fall back to full recompute of
      * pflow_output. */
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("ovn-controller runtime data has no tracked "
+                            "changes");
     }
 
     struct hmap *tracked_dp_bindings = &rt_data->tracked_dp_bindings;
@@ -4858,7 +4868,8 @@ pflow_output_runtime_data_handler(struct engine_node *node, void *data)
             /* Fall back to full recompute when a local datapath
              * is added or deleted. */
             destroy_physical_ctx(&p_ctx);
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Tracked datapath "UUID_FMT" is new or "
+                                "deleted", UUID_ARGS(&tdp->dp->header_.uuid));
         }
 
         struct shash_node *shash_node;
@@ -4894,7 +4905,8 @@ pflow_output_ct_zones_handler(struct engine_node *node OVS_UNUSED,
      *   - pflow_output handler for the runtime_data adds the physical
      *     flows for the claimed lport.
      * */
-    return ct_zones_data->recomputed ? EN_UNHANDLED("XXX FIXME") : EN_HANDLED_UNCHANGED;
+    return ct_zones_data->recomputed ? 
+        EN_UNHANDLED("CT zones data was recomputed") : EN_HANDLED_UNCHANGED;
 }
 
 static struct engine_input_handler_result
@@ -4949,10 +4961,13 @@ pflow_output_debug_handler(struct engine_node *node, void *data)
 
     pflow_output_get_debug(node, &debug);
 
-    if (pfo->debug.collector_set_id != debug.collector_set_id ||
-        pfo->debug.obs_domain_id != debug.obs_domain_id) {
+    if (pfo->debug.collector_set_id != debug.collector_set_id) {
         pfo->debug = debug;
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Physical flow output collector set ID has "
+                            "changed");
+    } else if (pfo->debug.obs_domain_id != debug.obs_domain_id) {
+        pfo->debug = debug;
+        return EN_UNHANDLED("Physical flow output obs domain ID has changed");
     }
     return EN_HANDLED_UPDATED;
 }
@@ -5076,7 +5091,7 @@ pflow_lflow_output_sb_chassis_handler(struct engine_node *node,
     const struct sbrec_chassis *ch;
     SBREC_CHASSIS_TABLE_FOR_EACH_TRACKED (ch, chassis_table) {
         if (sbrec_chassis_is_deleted(ch) || sbrec_chassis_is_new(ch)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Chassis %s is new or deleted", ch->name);
         }
     }
 
@@ -5213,7 +5228,7 @@ route_runtime_data_handler(struct engine_node *node, void *data)
                 "name");
 
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("runtime data has no tracked data");
     }
 
     /* There are the following cases where we need to handle updates to
@@ -5232,7 +5247,8 @@ route_runtime_data_handler(struct engine_node *node, void *data)
         if (re_t_dp) {
             /* XXX: Until we get I-P support for route exchange we need to
              * request recompute. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Cannot find tracked route datapath for "
+                                UUID_FMT, UUID_ARGS(&t_dp->dp->header_.uuid));
         }
 
         struct shash_node *shash_node;
@@ -5243,7 +5259,8 @@ route_runtime_data_handler(struct engine_node *node, void *data)
                                          lport->pb)) {
                 /* XXX: Until we get I-P support for route exchange we need to
                  * request recompute. */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Cannot find route exchange port %s",
+                                    lport->pb->logical_port);
             }
 
             /* When the port is removed we went from local to remote,
@@ -5257,7 +5274,7 @@ route_runtime_data_handler(struct engine_node *node, void *data)
             if (sset_contains(tracked_ports, name)) {
                 /* XXX: Until we get I-P support for route exchange we need to
                  * request recompute. */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Port %s is in our tracked ports", name);
             }
 
             const char *dp_name = smap_get(&lport->pb->options,
@@ -5265,7 +5282,8 @@ route_runtime_data_handler(struct engine_node *node, void *data)
             if (dp_name && sset_contains(tracked_ports, dp_name)) {
                 /* XXX: Until we get I-P support for route exchange we need to
                  * request recompute. */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Distributed port %s is in our tracked "
+                                    "ports", dp_name);
             }
         }
     }
@@ -5316,14 +5334,16 @@ route_sb_port_binding_data_handler(struct engine_node *node, void *data)
         if (re_t_dp) {
             /* XXX: Until we get I-P support for route exchange we need to
              * request recompute. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Unable to find tracked datapath for port "
+                                "binding %s", sbrec_pb->logical_port);
         }
 
         if (route_exchange_find_port(sbrec_port_binding_by_name,
                                      chassis, sbrec_pb)) {
             /* XXX: Until we get I-P support for route exchange we need to
              * request recompute. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Cannot find route exchange port for %s",
+                                sbrec_pb->logical_port);
         }
     }
 
@@ -5360,7 +5380,9 @@ route_sb_advertised_route_data_handler(struct engine_node *node, void *data)
                 sbrec_advertised_route_is_deleted(sbrec_route)) {
             /* XXX: Until we get I-P support for route exchange we need to
              * request recompute. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Advertised route "UUID_FMT" is new or "
+                                "deleted",
+                                UUID_ARGS(&sbrec_route->header_.uuid));
         }
 
         if (sbrec_route->tracked_port) {
@@ -5373,7 +5395,8 @@ route_sb_advertised_route_data_handler(struct engine_node *node, void *data)
                  * been NULL. If we notice that we have now loaded the
                  * Port_Binding we need to recompute to correctly update
                  * the route priority. */
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("%s is in our local or remote tracked "
+                                    "ports", name);
             }
         }
     }
@@ -5441,7 +5464,7 @@ route_exchange_sb_ro_handler(struct engine_node *node OVS_UNUSED, void *data)
 {
     struct ed_type_route_exchange *re = data;
     if (re->sb_changes_pending) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Route exchange has pending SB changes");
     }
 
     return EN_HANDLED_UNCHANGED;
@@ -5649,21 +5672,24 @@ garp_rarp_sb_port_binding_handler(struct engine_node *node,
 
         if (ld->localnet_port) {
             /* XXX: actually handle this incrementally. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Local datapath "UUID_FMT" has a localnet port",
+                                UUID_ARGS(&ld->datapath->header_.uuid));
         }
 
         if (sset_contains(&data->non_local_lports, pb->logical_port) &&
             lport_is_chassis_resident(sbrec_port_binding_by_name, chassis,
                                       pb->logical_port)) {
             /* XXX: actually handle this incrementally. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Logical port %s is nonlocal and chassis "
+                                "resident", pb->logical_port);
         }
 
         if (sset_contains(&data->local_lports, pb->logical_port) &&
             !lport_is_chassis_resident(sbrec_port_binding_by_name, chassis,
                                        pb->logical_port)) {
             /* XXX: actually handle this incrementally. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Logical port %s is local and not chassis "
+                                "resident", pb->logical_port);
         }
 
         /* If the cr_port was updated, bound to a different chassis in idl
@@ -5722,7 +5748,7 @@ garp_rarp_runtime_data_handler(struct engine_node *node, void *data OVS_UNUSED)
 
     /* There are no tracked data. Fall back to full recompute. */
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Runtime data has no tracked data");
     }
 
     struct tracked_datapath *tdp;
@@ -5730,7 +5756,8 @@ garp_rarp_runtime_data_handler(struct engine_node *node, void *data OVS_UNUSED)
         if (tdp->tracked_type == TRACKED_RESOURCE_REMOVED) {
             /* This is currently not handled incrementally in runtime_data
              * so it should never happen. Recompute just in case. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Tracked datapath "UUID_FMT" is deleted",
+                                UUID_ARGS(&tdp->dp->header_.uuid));
         }
 
         struct local_datapath *ld = get_local_datapath(
@@ -5742,7 +5769,9 @@ garp_rarp_runtime_data_handler(struct engine_node *node, void *data OVS_UNUSED)
 
         if (ld->localnet_port) {
             /* XXX: actually handle this incrementally. */
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Local datapath "UUID_FMT" has a localnet "
+                                "port",
+                                UUID_ARGS(&ld->datapath->header_.uuid));
         }
 
         /* The localnet port might also have been removed. */
@@ -5751,7 +5780,8 @@ garp_rarp_runtime_data_handler(struct engine_node *node, void *data OVS_UNUSED)
         SHASH_FOR_EACH (sn, &tdp->lports) {
             tlp = sn->data;
             if (!strcmp(tlp->pb->type, "localnet")) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Tracked logical port %s is localnet",
+                                    tlp->pb->logical_port);
             }
         }
     }
@@ -5898,7 +5928,8 @@ neighbor_runtime_data_handler(struct engine_node *node, void *data)
 
     /* There are no tracked data. Fall back to full recompute. */
     if (!rt_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("ovn-controller runtime data has no tracked "
+                            "changes");
     }
 
     struct tracked_datapath *tdp;
@@ -5917,7 +5948,8 @@ neighbor_runtime_data_handler(struct engine_node *node, void *data)
 
         if (tdp->tracked_type == TRACKED_RESOURCE_NEW ||
             tdp->tracked_type == TRACKED_RESOURCE_REMOVED) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("tracked datapath "UUID_FMT" is either new or "
+                                "deleted", UUID_ARGS(&tdp->dp->header_.uuid));
         }
 
         const char *redistribute = smap_get(&ld->datapath->external_ids,
@@ -5967,7 +5999,8 @@ neighbor_sb_datapath_binding_handler(struct engine_node *node,
 
         if (sbrec_datapath_binding_is_updated(
                 dp, SBREC_DATAPATH_BINDING_COL_EXTERNAL_IDS)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("datapath binding "UUID_FMT" external IDS are "
+                                "updated", UUID_ARGS(&dp->header_.uuid));
         }
     }
 

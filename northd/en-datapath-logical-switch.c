@@ -141,7 +141,8 @@ datapath_logical_switch_handler(struct engine_node *node, void *data)
 
         if (nbrec_logical_switch_is_new(nbs)) {
             if (udp) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Logical switch %s has same UUID as "
+                                    "logical switch %s", nbs->name, udp->name);
             }
             udp = datapath_unsynced_new_logical_switch_handler(nbs,
                                                                global_config,
@@ -149,13 +150,15 @@ datapath_logical_switch_handler(struct engine_node *node, void *data)
             hmapx_add(&map->new, udp);
         } else if (nbrec_logical_switch_is_deleted(nbs)) {
             if (!udp) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Cannot find unsynced datapath for "
+                                    "deleted logical switch %s", nbs->name);
             }
             hmap_remove(&map->dps, &udp->hmap_node);
             hmapx_add(&map->deleted, udp);
         } else {
             if (!udp) {
-                return EN_UNHANDLED("XXX FIXME");
+                return EN_UNHANDLED("Cannot find unsynced datapath for "
+                                    "updated logical switch %s", nbs->name);
             }
 
             udp->requested_tunnel_key = get_requested_tunnel_key(
@@ -334,7 +337,7 @@ en_datapath_synced_logical_switch_datapath_sync_handler(
     if (hmapx_is_empty(&dps->deleted) &&
         hmapx_is_empty(&dps->new) &&
         hmapx_is_empty(&dps->updated)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("No tracked synced datapaths");
     }
 
     struct hmapx_node *hmapx_node;
@@ -358,7 +361,9 @@ en_datapath_synced_logical_switch_datapath_sync_handler(
         }
         lsw = ovn_synced_logical_switch_find(switch_map, &sdp->nb_row->uuid);
         if (!lsw) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Unable to find matching synced logical "
+                                "switch for deleted synced datapath "UUID_FMT,
+                                UUID_ARGS(&sdp->nb_row->uuid));
         }
         hmap_remove(&switch_map->synced_switches, &lsw->hmap_node);
         hmapx_add(&switch_map->deleted, lsw);
@@ -371,7 +376,9 @@ en_datapath_synced_logical_switch_datapath_sync_handler(
         }
         lsw = ovn_synced_logical_switch_find(switch_map, &sdp->nb_row->uuid);
         if (!lsw) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Unable to find matching synced logical "
+                                "switch for updated synced datapath "UUID_FMT,
+                                UUID_ARGS(&sdp->nb_row->uuid));
         }
         lsw->nb = CONTAINER_OF(sdp->nb_row, struct nbrec_logical_switch,
                                header_);

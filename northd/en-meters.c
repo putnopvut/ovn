@@ -90,13 +90,15 @@ sync_meters_nb_acl_handler(struct engine_node *node, void *data OVS_UNUSED)
         /* New or deleted ACL with meter needs to be recomputed. */
         if ((nbrec_acl_is_new(nb_acl) || nbrec_acl_is_deleted(nb_acl)) &&
             (nb_acl->log || nb_acl->meter)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("new or deleted ACL has 'log' or 'meter' "
+                                "settings");
         }
 
         /* Addition or removal of meter requires recompute. */
         if (nbrec_acl_is_updated(nb_acl, NBREC_ACL_COL_LOG) ||
             nbrec_acl_is_updated(nb_acl, NBREC_ACL_COL_METER)) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("the 'log' or 'meter' values of an ACL have "
+                                "been updated");
         }
     }
 

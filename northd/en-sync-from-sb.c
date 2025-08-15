@@ -76,7 +76,7 @@ sync_from_sb_northd_handler(struct engine_node *node,
          * real change matters to this node is always from the SB DB.) */
         return EN_HANDLED_UNCHANGED;
     }
-    return EN_UNHANDLED("XXX FIXME");
+    return EN_UNHANDLED("northd has no tracked data");
 }
 
 void

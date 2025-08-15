@@ -160,11 +160,13 @@ en_datapath_logical_router_logical_router_handler(struct engine_node *node,
         udp = ovn_unsynced_datapath_find(map, &nbr->header_.uuid);
 
         if (nbrec_logical_router_is_deleted(nbr) && !udp) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("cannot find matching unsynced datapath for "
+                                "deleted logical router %s", nbr->name);
         }
 
         if (nbrec_logical_router_is_new(nbr) && udp) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("new logical router %s has the same UUID as "
+                                "logical router %s", nbr->name, udp->name);
         }
 
         if (udp) {
@@ -330,7 +332,7 @@ en_datapath_synced_logical_router_datapath_sync_handler(
     if (hmapx_is_empty(&dps->deleted) &&
         hmapx_is_empty(&dps->new) &&
         hmapx_is_empty(&dps->updated)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("datapath sync has provided no tracked data");
     }
 
     struct hmapx_node *hmapx_node;
@@ -354,7 +356,9 @@ en_datapath_synced_logical_router_datapath_sync_handler(
         }
         lr = ovn_synced_logical_router_find(router_map, &sdp->nb_row->uuid);
         if (!lr) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("unable to find matching synced logical "
+                                "router for deleted synced datapath"
+                                UUID_FMT, UUID_ARGS(&sdp->nb_row->uuid));
         }
         hmap_remove(&router_map->synced_routers, &lr->hmap_node);
         hmapx_add(&router_map->deleted, lr);
@@ -367,7 +371,10 @@ en_datapath_synced_logical_router_datapath_sync_handler(
         }
         lr = ovn_synced_logical_router_find(router_map, &sdp->nb_row->uuid);
         if (!lr) {
-            return EN_UNHANDLED("XXX FIXME");
+
+            return EN_UNHANDLED("unable to find matching synced logical "
+                                "router for updated synced datapath"
+                                UUID_FMT, UUID_ARGS(&sdp->nb_row->uuid));
         }
         lr->nb = CONTAINER_OF(sdp->nb_row, struct nbrec_logical_router,
                               header_);

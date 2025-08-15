@@ -139,11 +139,11 @@ lflow_northd_handler(struct engine_node *node,
 {
     struct northd_data *northd_data = engine_get_input_data("northd", node);
     if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has no tracked data.");
     }
 
     if (northd_has_lswitches_in_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("northd has logical switches in its tracked data");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -174,9 +174,10 @@ lflow_lr_stateful_handler(struct engine_node *node, void *data)
     struct ed_type_lr_stateful *lr_sful_data =
         engine_get_input_data("lr_stateful", node);
 
-    if (!lr_stateful_has_tracked_data(&lr_sful_data->trk_data)
-        || lr_sful_data->trk_data.vip_nats_changed) {
-        return EN_UNHANDLED("XXX FIXME");
+    if (!lr_stateful_has_tracked_data(&lr_sful_data->trk_data)) {
+        return EN_UNHANDLED("lr_stateful has no tracked data");
+    } else if (lr_sful_data->trk_data.vip_nats_changed) {
+        return EN_UNHANDLED("lr_stateful has changed VIPs or NATs");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -201,7 +202,7 @@ lflow_ls_stateful_handler(struct engine_node *node, void *data)
         engine_get_input_data("ls_stateful", node);
 
     if (!ls_stateful_has_tracked_data(&ls_sful_data->trk_data)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("ls_stateful has no tracked data");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -238,7 +239,7 @@ lflow_multicast_igmp_handler(struct engine_node *node, void *data)
                                 lflow_input.ovn_internal_version_changed,
                                 lflow_input.sbrec_logical_flow_table,
                                 lflow_input.sbrec_logical_dp_group_table)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Failed to delete old IGMP flows");
     }
 
     build_igmp_lflows(&mcast_igmp_data->igmp_groups,
@@ -254,7 +255,7 @@ lflow_multicast_igmp_handler(struct engine_node *node, void *data)
                                lflow_input.ovn_internal_version_changed,
                                lflow_input.sbrec_logical_flow_table,
                                lflow_input.sbrec_logical_dp_group_table)) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Failed to sync new IGMP flows");
     }
 
     return EN_HANDLED_UPDATED;
@@ -269,7 +270,7 @@ lflow_group_ecmp_route_change_handler(struct engine_node *node,
 
     /* If we do not have tracked data we need to recompute. */
     if (!group_ecmp_route_data->tracked) {
-        return EN_UNHANDLED("XXX FIXME");
+        return EN_UNHANDLED("Group ECMP route data has no tracked changes");
     }
 
     const struct engine_context *eng_ctx = engine_get_context();
@@ -296,7 +297,9 @@ lflow_group_ecmp_route_change_handler(struct engine_node *node,
             lflow_input.sbrec_logical_flow_table,
             lflow_input.sbrec_logical_dp_group_table);
         if (!handled) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Failed to delete lflows for deleted ECMP "
+                                "routes for router %s",
+                                route_node->od->nbr->name);
         }
     }
 
@@ -318,7 +321,8 @@ lflow_group_ecmp_route_change_handler(struct engine_node *node,
             lflow_input.sbrec_logical_flow_table,
             lflow_input.sbrec_logical_dp_group_table);
         if (!handled) {
-            return EN_UNHANDLED("XXX FIXME");
+            return EN_UNHANDLED("Failed to sync flows for ECMP routes for "
+                                "router %s", route_node->od->nbr->name);
         }
     }
 
