@@ -2170,6 +2170,11 @@ consider_port_binding(const struct physical_ctx *ctx,
         /* Match MFF_LOG_DATAPATH, MFF_LOG_OUTPORT. */
         match_outport_dp_and_port_keys(&match, dp_key, port_key);
 
+        ovs_be32 loopback = htonl(1 << MLF_ALLOW_LOOPBACK_BIT);
+        ovs_be32 loopback_mask = htonl(1 << MLF_ALLOW_LOOPBACK_BIT);
+        ofpact_put_set_field(
+            ofpacts_p, mf_from_id(MFF_LOG_FLAGS), &loopback, &loopback_mask);
+
         put_load(localnet_port->tunnel_key, MFF_LOG_OUTPORT, 0, 32, ofpacts_p);
 
         /* Resubmit to table 45. */
