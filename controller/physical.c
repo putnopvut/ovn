@@ -371,6 +371,16 @@ put_remote_port_redirect_bridged(const struct
         ofpact_put_set_field(ofpacts_p, mf_from_id(MFF_REG15),
                              &value, NULL);
 
+        /* If redirecting to the localnet port, then it's possible
+         * the packet arrived on the localnet port and is being
+         * hairpinned. Allow the packet to be looped back in this
+         * case.
+         */
+        ovs_be32 loopback = htonl(1 << MLF_ALLOW_LOOPBACK_BIT);
+        ovs_be32 loopback_mask = htonl(1 << MLF_ALLOW_LOOPBACK_BIT);
+        ofpact_put_set_field(
+            ofpacts_p, mf_from_id(MFF_LOG_FLAGS), &loopback, &loopback_mask);
+
         put_resubmit(OFTABLE_LOG_TO_PHY, ofpacts_p);
         ofctrl_add_flow(flow_table, OFTABLE_LOCAL_OUTPUT, 100,
                         binding->header_.uuid.parts[0],
