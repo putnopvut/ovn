@@ -1,7 +1,7 @@
 {
     "name": "OVN_Southbound",
-    "version": "21.4.0",
-    "cksum": "812831561 35225",
+    "version": "21.4.1",
+    "cksum": "617702905 35383",
     "tables": {
         "SB_Global": {
             "columns": {
@@ -200,6 +200,9 @@
                                           "enum": ["set",
                                                       ["logical-switch",
                                                        "logical-router"]]}}},
+                "nb_uuid": {"type": {"key": {"type": "uuid"},
+                                     "min": 0,
+                                     "max": 1}},
                 "external_ids": {
                     "type": {"key": "string", "value": "string",
                              "min": 0, "max": "unlimited"}}},

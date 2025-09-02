@@ -95,9 +95,9 @@ find_synced_datapath_from_sb(const struct hmap *datapaths,
                              const struct sbrec_datapath_binding *sb_dp)
 {
     struct ovn_synced_datapath *sdp;
-    uint32_t hash = uuid_hash(&sb_dp->header_.uuid);
+    uint32_t hash = uuid_hash(sb_dp->nb_uuid);
     HMAP_FOR_EACH_WITH_HASH (sdp, hmap_node, hash, datapaths) {
-        if (uuid_equals(&sdp->nb_row->uuid, &sb_dp->header_.uuid)) {
+        if (uuid_equals(&sdp->nb_row->uuid, sb_dp->nb_uuid)) {
             return sdp;
         }
     }
@@ -134,6 +134,7 @@ synced_datapath_set_sb_fields(const struct sbrec_datapath_binding *sb_dp,
     sbrec_datapath_binding_set_external_ids(sb_dp, &udp->external_ids);
     sbrec_datapath_binding_set_type(sb_dp,
                                     ovn_datapath_type_to_string(udp->type));
+    sbrec_datapath_binding_set_nb_uuid(sb_dp, &udp->nb_row->uuid, 1);
 }
 
 static void
@@ -214,8 +215,7 @@ create_synced_datapath_candidates_from_nb(
                 continue;
             }
             struct sbrec_datapath_binding *sb_dp;
-            sb_dp = sbrec_datapath_binding_insert_persist_uuid(
-                        ovnsb_idl_txn, &udp->nb_row->uuid);
+            sb_dp = sbrec_datapath_binding_insert(ovnsb_idl_txn);
             struct candidate_sdp candidate = {
                 .sdp = synced_datapath_alloc(udp, sb_dp, true),
                 .requested_tunnel_key = udp->requested_tunnel_key,
@@ -248,7 +248,7 @@ assign_requested_tunnel_keys(struct vector *candidate_sdps,
         sbrec_datapath_binding_set_tunnel_key(candidate->sdp->sb_dp,
                                               candidate->requested_tunnel_key);
         hmap_insert(&synced_datapaths->synced_dps, &candidate->sdp->hmap_node,
-                    uuid_hash(&candidate->sdp->sb_dp->header_.uuid));
+                    uuid_hash(candidate->sdp->sb_dp->nb_uuid));
         candidate->tunnel_key_assigned = true;
     }
 }
@@ -270,7 +270,7 @@ assign_existing_tunnel_keys(struct vector *candidate_sdps,
                           candidate->existing_tunnel_key)) {
             hmap_insert(&synced_datapaths->synced_dps,
                         &candidate->sdp->hmap_node,
-                        uuid_hash(&candidate->sdp->sb_dp->header_.uuid));
+                        uuid_hash(candidate->sdp->sb_dp->nb_uuid));
             candidate->tunnel_key_assigned = true;
         }
     }
@@ -297,7 +297,7 @@ allocate_tunnel_keys(struct vector *candidate_sdps,
         sbrec_datapath_binding_set_tunnel_key(candidate->sdp->sb_dp,
                                               tunnel_key);
         hmap_insert(&synced_datapaths->synced_dps, &candidate->sdp->hmap_node,
-                    uuid_hash(&candidate->sdp->sb_dp->header_.uuid));
+                    uuid_hash(candidate->sdp->sb_dp->nb_uuid));
         candidate->tunnel_key_assigned = true;
     }
 }
@@ -372,8 +372,7 @@ datapath_sync_unsynced_datapath_handler(
         }
 
         struct sbrec_datapath_binding *sb_dp =
-            sbrec_datapath_binding_insert_persist_uuid(ovnsb_idl_txn,
-                                                       &udp->nb_row->uuid);
+            sbrec_datapath_binding_insert(ovnsb_idl_txn);
         sbrec_datapath_binding_set_tunnel_key(sb_dp, tunnel_key);
         sdp = synced_datapath_alloc(udp, sb_dp, true);
         synced_datapath_set_sb_fields(sb_dp, udp);
