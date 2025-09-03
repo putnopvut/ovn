@@ -29,7 +29,7 @@ struct ovsdb_idl_row;
 struct lflow_table;
 struct lflow_table *lflow_table_alloc(void);
 void lflow_table_init(struct lflow_table *);
-void lflow_table_clear(struct lflow_table *);
+void lflow_table_clear(struct lflow_table *, bool);
 void lflow_table_destroy(struct lflow_table *);
 void lflow_table_expand(struct lflow_table *);
 void lflow_table_set_size(struct lflow_table *, size_t);
