@@ -900,6 +900,7 @@ put_replace_router_port_mac_flows(const struct physical_ctx *ctx,
             ofpact_put_push_vlan(ofpacts_p, &localnet_port->options, tag);
         }
 
+        ofpact_put_SET_ETH_DST(ofpacts_p)->mac = router_port_mac;
         ofpact_put_OUTPUT(ofpacts_p)->port = ofport;
 
         /* Replace the MAC back and strip vlan. In case of l2 flooding

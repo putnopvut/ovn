@@ -14256,32 +14256,6 @@ build_arp_resolve_flows_for_lrp(struct ovn_port *op,
                                     lflow_ref);
         }
     }
-
-    if (lrp_is_l3dgw(op)) {
-        const char *redirect_type = smap_get(&op->nbrp->options,
-                                             "redirect-type");
-        if (redirect_type && !strcasecmp(redirect_type, "bridged")) {
-            /* Packet is on a non gateway chassis and
-             * has an unresolved ARP on a network behind gateway
-             * chassis attached router port. Since, redirect type
-             * is "bridged", instead of calling "get_arp"
-             * on this node, we will redirect the packet to gateway
-             * chassis, by setting destination mac router port mac.*/
-            ds_clear(match);
-            ds_put_format(match, "outport == %s && "
-                          "!is_chassis_resident(%s)", op->json_key,
-                          op->cr_port->json_key);
-            ds_clear(actions);
-            ds_put_format(actions, "eth.dst = %s; next;",
-                          op->lrp_networks.ea_s);
-
-            ovn_lflow_add_with_hint(lflows, op->od,
-                                    S_ROUTER_IN_ARP_RESOLVE, 50,
-                                    ds_cstr(match), ds_cstr(actions),
-                                    &op->nbrp->header_,
-                                    lflow_ref);
-        }
-    }
 }
 
 static void
