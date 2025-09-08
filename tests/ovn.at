@@ -25901,6 +25901,7 @@ m4_define([DVR_N_S_PING],
    echo "Send traffic South to Nouth"
    sip=`ip_to_hex 192 168 1 1`
    dip=`ip_to_hex 172 31 0 10`
+
    test_ip vif11 f00000000011 000001010203 $sip $dip vif-north
 
    # Confirm that South to North traffic works fine.

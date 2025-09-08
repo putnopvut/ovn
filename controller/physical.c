@@ -861,8 +861,8 @@ put_replace_router_port_mac_flows(const struct physical_ctx *ctx,
         struct match match;
         struct ofpact_mac *replace_mac;
         char *cr_peer_name = xasprintf("cr-%s", rport_binding->logical_port);
-        if (lport_is_chassis_resident(ctx->sbrec_port_binding_by_name,
-                                      ctx->chassis, cr_peer_name)) {
+        const struct sbrec_port_binding *cr_pb = lport_lookup_by_name(ctx->sbrec_port_binding_by_name, cr_peer_name);
+        if (lport_pb_is_chassis_resident(ctx->chassis, cr_pb)) {
             /* If a router port's chassisredirect port is
              * resident on this chassis, then we need not do mac replace. */
             free(cr_peer_name);
@@ -900,7 +900,9 @@ put_replace_router_port_mac_flows(const struct physical_ctx *ctx,
             ofpact_put_push_vlan(ofpacts_p, &localnet_port->options, tag);
         }
 
-        ofpact_put_SET_ETH_DST(ofpacts_p)->mac = router_port_mac;
+        if (cr_pb) {
+            ofpact_put_SET_ETH_DST(ofpacts_p)->mac = router_port_mac;
+        }
         ofpact_put_OUTPUT(ofpacts_p)->port = ofport;
 
         /* Replace the MAC back and strip vlan. In case of l2 flooding
