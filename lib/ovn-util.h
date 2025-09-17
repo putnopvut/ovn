@@ -657,4 +657,38 @@ bool datapath_get_nb_uuid(const struct sbrec_datapath_binding *sb,
 
 const char *datapath_get_nb_type(const struct sbrec_datapath_binding *sb);
 
+/* "Either" types. C does not provide union types the same as other higher
+ * level languages. You can't define, for instance, a function that can return
+ * an int when things are successful and a string when things fail. In order
+ * to do this, the two types need to be a union within a struct, with a
+ * boolean field to distinguish which field of the union to use.
+ *
+ * The macros below provide a way to define "Either" types in OVN.
+ */
+
+#define EITHER(NAME, SUCCESS_TYPE, FAILURE_TYPE) \
+    struct NAME {                                \
+        union {                                  \
+            SUCCESS_TYPE success;                \
+            FAILURE_TYPE failure;                \
+        } result;                                \
+        bool successful;                         \
+    };
+
+#define EITHER_SET_SUCCESS(EITHER_TYPE, SUCCESS_VAL) \
+    (struct EITHER_TYPE) {\
+        .result.success = SUCCESS_VAL, \
+        .successful = true, \
+    }
+
+#define EITHER_SET_FAILURE(EITHER_TYPE, FAILURE_VAL) \
+    (struct EITHER_TYPE) { \
+        .result.failure = FAILURE_VAL, \
+        .successful = false, \
+    }
+
+#define EITHER_SUCCESS(EITHER_TYPE) EITHER_TYPE.successful
+#define EITHER_GET_SUCCESS(EITHER_TYPE) EITHER_TYPE.result.success
+#define EITHER_GET_FAILURE(EITHER_TYPE) EITHER_TYPE.result.failure
+
 #endif /* OVN_UTIL_H */
