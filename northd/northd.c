@@ -920,7 +920,8 @@ build_datapaths(const struct ovn_synced_logical_switch_map *ls_map,
     ods_build_array_index(lr_datapaths);
 }
 
-static bool lsp_can_be_inc_processed(const struct nbrec_logical_switch_port *);
+static struct annotated_bool lsp_can_be_inc_processed(
+        const struct nbrec_logical_switch_port *);
 
 /* This function returns true if 'op' is a chassis resident
  * derived port. False otherwise.
@@ -1022,6 +1023,7 @@ ovn_port_set_nb(struct ovn_port *op,
 {
     op->nbsp = nbsp;
     if (nbsp) {
+        annotated_bool_destroy(&op->lsp_can_be_inc_processed);
         op->lsp_can_be_inc_processed = lsp_can_be_inc_processed(nbsp);
     }
     op->nbrp = nbrp;
@@ -1039,6 +1041,11 @@ ovn_port_create(struct hmap *ports, const char *key,
     struct ds json_key = DS_EMPTY_INITIALIZER;
     json_string_escape(key, &json_key);
     op->json_key = ds_steal_cstr(&json_key);
+
+    /* Set this TRUE no matter if this is a switch or
+     * router port.
+     */
+    op->lsp_can_be_inc_processed = TRUE;
 
     op->key = xstrdup(key);
     op->sb = sb;
@@ -1090,6 +1097,7 @@ ovn_port_destroy_orphan(struct ovn_port *port)
     free(port->key);
     lflow_ref_destroy(port->lflow_ref);
     lflow_ref_destroy(port->stateful_lflow_ref);
+    annotated_bool_destroy(&port->lsp_can_be_inc_processed);
 
     free(port);
 }
@@ -4094,48 +4102,51 @@ destroy_northd_tracked_data(struct northd_data *nd)
 /* Check if a changed LSP can be handled incrementally within the I-P engine
  * node en_northd.
  */
-static bool
+static struct annotated_bool
 lsp_can_be_inc_processed(const struct nbrec_logical_switch_port *nbsp)
 {
     /* Support only normal VIF for now. */
     if (nbsp->type[0]) {
-        return false;
+        return FALSE("logical switch port %s is not a VIF type", nbsp->name);
     }
 
     /* Tag allocation is not supported for now. */
     if ((nbsp->parent_name && nbsp->parent_name[0]) || nbsp->tag ||
         nbsp->tag_request) {
-        return false;
+        return FALSE("logical switch port %s has tag information", nbsp->name);
     }
 
     /* Port with qos settings is not supported for now (need special handling
      * for qdisc_queue_id sync). */
     if (port_has_qos_params(&nbsp->options)) {
-        return false;
+        return FALSE("logical switch port %s has QOS options", nbsp->name);
     }
 
     for (size_t j = 0; j < nbsp->n_addresses; j++) {
         /* Dynamic address was assigned in the last iteration. */
         if (is_dynamic_lsp_address(nbsp->addresses[j]) &&
             nbsp->dynamic_addresses) {
-            return false;
+            return FALSE("logical switch port %s has dynamic address %s",
+                         nbsp->name, nbsp->addresses[j]);
         }
         /* "unknown" address handling is not supported for now.  XXX: Need to
          * handle od->has_unknown change and track it when the first LSP with
          * 'unknown' is added or when the last one is removed. */
         if (!strcmp(nbsp->addresses[j], "unknown")) {
-            return false;
+            return FALSE("logical switch port %s has 'unknown' address",
+                         nbsp->name);
         }
     }
 
     /* Attaching lport mirror is not supported for now. */
     for (size_t i = 0; i < nbsp->n_mirror_rules; i++) {
         if (!strcmp("lport", nbsp->mirror_rules[i]->type)) {
-            return false;
+            return FALSE("logical switch port %s has 'lport' mirror rule",
+                         nbsp->name);
         }
     }
 
-    return true;
+    return TRUE;
 }
 
 static bool
@@ -4245,7 +4256,7 @@ ls_port_reinit(struct ovn_port *op, struct ovsdb_idl_txn *ovnsb_txn,
  *    - load balancer groups.
  *    - ACLs
  */
-static bool
+static struct annotated_bool
 ls_changes_can_be_handled(
     const struct nbrec_logical_switch *ls)
 {
@@ -4259,7 +4270,8 @@ ls_changes_can_be_handled(
                 col == NBREC_LOGICAL_SWITCH_COL_LOAD_BALANCER_GROUP) {
                 continue;
             }
-            return false;
+            return FALSE("logical switch %s has an unsupported column "
+                         "updated", ls->name);
         }
     }
 
@@ -4267,27 +4279,31 @@ ls_changes_can_be_handled(
        XXX: Need a better OVSDB IDL interface for this check. */
     if (ls->copp && nbrec_copp_row_get_seqno(ls->copp,
                                 OVSDB_IDL_CHANGE_MODIFY) > 0) {
-        return false;
+        return FALSE("logical switch %s has its COPP modified",
+                     ls->name);
     }
     for (size_t i = 0; i < ls->n_dns_records; i++) {
         if (nbrec_dns_row_get_seqno(ls->dns_records[i],
                                 OVSDB_IDL_CHANGE_MODIFY) > 0) {
-            return false;
+            return FALSE("logical switch %s has its DNS records modified",
+                         ls->name);
         }
     }
     for (size_t i = 0; i < ls->n_forwarding_groups; i++) {
         if (nbrec_forwarding_group_row_get_seqno(ls->forwarding_groups[i],
                                 OVSDB_IDL_CHANGE_MODIFY) > 0) {
-            return false;
+            return FALSE("logical switch %s has its forwarding groups "
+                         "modified", ls->name);
         }
     }
     for (size_t i = 0; i < ls->n_qos_rules; i++) {
         if (nbrec_qos_row_get_seqno(ls->qos_rules[i],
                                 OVSDB_IDL_CHANGE_MODIFY) > 0) {
-            return false;
+            return FALSE("logical switch %s has its QOS modified",
+                         ls->name);
         }
     }
-    return true;
+    return TRUE;
 }
 
 static bool
@@ -4368,7 +4384,7 @@ lsp_handle_mirror_rules_changes(const struct ovn_port *op)
 /* Handles logical switch port changes of a changed logical switch.
  * Returns false, if any logical port can't be incrementally handled.
  */
-static bool
+static struct annotated_bool
 ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
                       const struct nbrec_logical_switch *changed_ls,
                       const struct northd_input *ni,
@@ -4394,9 +4410,10 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
     }
 
     if (!ls_ports_changed) {
-        return true;
+        return TRUE;
     }
 
+    struct annotated_bool ret = TRUE;
     bool ls_had_only_router_ports = (!vector_is_empty(&od->router_ports)
             && (vector_len(&od->router_ports) == hmap_count(&od->ports)));
 
@@ -4414,8 +4431,9 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
         op = ovn_port_find_in_datapath(od, new_nbsp);
 
         if (!op) {
-            if (!lsp_can_be_inc_processed(new_nbsp)) {
-                goto fail;
+            ret = lsp_can_be_inc_processed(new_nbsp);
+            if (!IS_TRUE(ret)) {
+                goto end;
             }
             op = ls_port_create(ovnsb_idl_txn, &nd->ls_ports,
                                 new_nbsp->name, new_nbsp, od,
@@ -4423,28 +4441,45 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
                                 ni->sbrec_chassis_by_name,
                                 ni->sbrec_chassis_by_hostname);
             if (!op) {
-                goto fail;
+                ret = FALSE("Could not create ovn_port for logical switch "
+                            "port %s", new_nbsp->name);
+                goto end;
             }
             add_op_to_northd_tracked_ports(&trk_lsps->created, op);
         } else if (ls_port_has_changed(new_nbsp)) {
             /* Existing port updated */
             bool temp = false;
-            if (lsp_is_type_changed(op->sb, new_nbsp, &temp) ||
-                !op->lsp_can_be_inc_processed ||
-                !lsp_can_be_inc_processed(new_nbsp)) {
-                goto fail;
+            if (lsp_is_type_changed(op->sb, new_nbsp, &temp)) {
+                ret = FALSE("logical switch port %s type has changed", new_nbsp->name);
+                goto end;
+            }
+            if (!IS_TRUE(op->lsp_can_be_inc_processed)) {
+                ret = ANNOTATED_BOOL_COPY(op->lsp_can_be_inc_processed);
+                goto end;
+            }
+            ret = lsp_can_be_inc_processed(new_nbsp);
+            if (!IS_TRUE(ret)) {
+                goto end;
             }
             const struct sbrec_port_binding *sb = op->sb;
             if (sset_contains(&nd->svc_monitor_lsps, new_nbsp->name)) {
                 /* This port is used for svc monitor, which may be impacted
                  * by this change. Fallback to recompute. */
-                goto fail;
+                ret = FALSE("logical switch port %s is a service monitor lsp",
+                            new_nbsp->name);
+                goto end;
             }
-            if (!lsp_handle_mirror_rules_changes(op) ||
-                 is_lsp_mirror_target_port(ni->nbrec_mirror_by_type_and_sink,
-                                           op)) {
+            if (!lsp_handle_mirror_rules_changes(op)) {
+                ret = FALSE("logical switch port %s has changed mirror rules",
+                            op->key);
+                goto end;
+            }
+            if (is_lsp_mirror_target_port(ni->nbrec_mirror_by_type_and_sink,
+                                          op)) {
                 /* Fallback to recompute. */
-                goto fail;
+                ret = FALSE("logical switch port %s is a target mirror port",
+                            op->key);
+                goto end;
             }
             if (!check_lsp_is_up &&
                 !check_lsp_changes_other_than_up(new_nbsp)) {
@@ -4465,7 +4500,9 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
                     sbrec_port_binding_delete(sb);
                 }
                 ovn_port_destroy(&nd->ls_ports, op);
-                goto fail;
+                ret = FALSE("unable to reinitialize logical switch port %s. "
+                            "Possible tunnel key issues", op->key);
+                goto end;
             }
             add_op_to_northd_tracked_ports(&trk_lsps->updated, op);
 
@@ -4482,13 +4519,16 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
     /* Check for deleted ports */
     HMAP_FOR_EACH_SAFE (op, dp_node, &od->ports) {
         if (!op->visited) {
-            if (!op->lsp_can_be_inc_processed) {
-                goto fail;
+            if (!IS_TRUE(op->lsp_can_be_inc_processed)) {
+                ret = ANNOTATED_BOOL_COPY(op->lsp_can_be_inc_processed);
+                goto end;
             }
             if (sset_contains(&nd->svc_monitor_lsps, op->key)) {
                 /* This port was used for svc monitor, which may be
                  * impacted by this deletion. Fallback to recompute. */
-                goto fail;
+                ret = FALSE("logical switch port %s is a service monitor lsp",
+                            op->key);
+                goto end;
             }
             add_op_to_northd_tracked_ports(&trk_lsps->deleted, op);
             hmap_remove(&nd->ls_ports, &op->key_node);
@@ -4501,7 +4541,9 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
                                           op)) {
                 /* This port was used as target/source mirror port,
                  * fallback to recompute. */
-                goto fail;
+                ret = FALSE("logical switch port %s either has an attached "
+                            "mirror or is a mirror target", op->key);
+                goto end;
             }
         }
     }
@@ -4560,11 +4602,11 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
     }
     sset_destroy(&created_or_deleted_ports);
 
-    return true;
-
-fail:
-    destroy_tracked_ovn_ports(trk_lsps);
-    return false;
+end:
+    if (!IS_TRUE(ret)) {
+        destroy_tracked_ovn_ports(trk_lsps);
+    }
+    return ret;
 }
 
 static bool
@@ -4593,18 +4635,20 @@ is_ls_acls_changed(const struct nbrec_logical_switch *nbs) {
  * Note: Changes to load balancer and load balancer groups associated with
  * the logical switches are handled separately in the lb_data change handlers.
  * */
-bool
+struct annotated_bool
 northd_handle_ls_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
                          const struct northd_input *ni,
                          struct northd_data *nd)
 {
     struct northd_tracked_data *trk_data = &nd->trk_data;
     nd->trk_data.type = NORTHD_TRACKED_NONE;
+    struct annotated_bool ret = TRUE;
 
     if (hmapx_is_empty(&ni->synced_lses->new) &&
         hmapx_is_empty(&ni->synced_lses->deleted) &&
         hmapx_is_empty(&ni->synced_lses->updated)) {
-        goto fail;
+        ret = FALSE("no logical switch tracked data");
+        goto end;
     }
 
     struct hmapx_node *node;
@@ -4614,9 +4658,24 @@ northd_handle_ls_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
 
         /* If a logical switch is created with the below columns set,
          * then we can't handle this yet. Goto fail. */
-        if (new_ls->copp || new_ls->n_dns_records ||
-            new_ls->n_forwarding_groups || new_ls->n_qos_rules) {
-            goto fail;
+        if (new_ls->copp) {
+            ret = FALSE("New logical switch %s has COPP", new_ls->name);
+            goto end;
+        }
+        if (new_ls->n_dns_records) {
+            ret = FALSE("New logical switch %s has DNS records",
+                        new_ls->name);
+            goto end;
+        }
+        if (new_ls->n_forwarding_groups) {
+            ret = FALSE("New logical switch %s has forwarding groups",
+                        new_ls->name);
+            goto end;
+        }
+        if (new_ls->n_qos_rules) {
+            ret = FALSE("New logical switch %s has QOS rules",
+                        new_ls->name);
+            goto end;
         }
 
         struct ovn_datapath *od = ovn_datapath_create(
@@ -4632,9 +4691,10 @@ northd_handle_ls_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
             sbrec_ip_multicast_insert(ovnsb_idl_txn);
         store_mcast_info_for_switch_datapath(ip_mcast, od);
 
-        if (!ls_handle_lsp_changes(ovnsb_idl_txn, new_ls,
-                                   ni, nd, od, &trk_data->trk_lsps)) {
-            goto fail;
+        ret = ls_handle_lsp_changes(ovnsb_idl_txn, new_ls,
+                                   ni, nd, od, &trk_data->trk_lsps);
+        if (!IS_TRUE(ret)) {
+            goto end;
         }
 
         if (new_ls->n_acls) {
@@ -4655,17 +4715,21 @@ northd_handle_ls_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
             VLOG_WARN_RL(&rl, "Internal error: a tracked updated LS doesn't "
                          "exist in ls_datapaths: "UUID_FMT,
                          UUID_ARGS(&changed_ls->header_.uuid));
-            goto fail;
+            ret = FALSE("could not find ovn_datapath for updated logical "
+                        "switch %s", changed_ls->name);
+            goto end;
         }
 
         /* Check if the ls changes can be handled or not. */
-        if (!ls_changes_can_be_handled(changed_ls)) {
-            goto fail;
+        ret = ls_changes_can_be_handled(changed_ls);
+        if (!IS_TRUE(ret)) {
+            goto end;
         }
 
-        if (!ls_handle_lsp_changes(ovnsb_idl_txn, changed_ls,
-                                   ni, nd, od, &trk_data->trk_lsps)) {
-            goto fail;
+        ret = ls_handle_lsp_changes(ovnsb_idl_txn, changed_ls,
+                                   ni, nd, od, &trk_data->trk_lsps);
+        if (!IS_TRUE(ret)) {
+            goto end;
         }
 
         if (is_ls_acls_changed(changed_ls)) {
@@ -4692,18 +4756,46 @@ northd_handle_ls_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
             VLOG_WARN_RL(&rl, "Internal error: a tracked deleted LS doesn't "
                          "exist in ls_datapaths: "UUID_FMT,
                          UUID_ARGS(&deleted_ls->header_.uuid));
-            goto fail;
+            ret = FALSE("could not find ovn_datapath for deleted logical "
+                        "switch %s", deleted_ls->name);
+            goto end;
         }
 
-        if (deleted_ls->copp || deleted_ls->n_dns_records ||
-            deleted_ls->n_forwarding_groups || deleted_ls->n_qos_rules ||
-            deleted_ls->n_load_balancer || deleted_ls->n_load_balancer_group) {
-            goto fail;
+        if (deleted_ls->copp) {
+            ret = FALSE("deleted logical switch %s has COPP",
+                        deleted_ls->name);
+            goto end;
+        }
+        if (deleted_ls->n_dns_records) {
+            ret = FALSE("deleted logical switch %s has DNS records",
+                        deleted_ls->name);
+            goto end;
+        }
+        if (deleted_ls->n_forwarding_groups) {
+            ret = FALSE("deleted logical switch %s has forwarding groups",
+                        deleted_ls->name);
+            goto end;
+        }
+        if (deleted_ls->n_qos_rules) {
+            ret = FALSE("deleted logical switch %s has QOS rules",
+                        deleted_ls->name);
+            goto end;
+        }
+        if (deleted_ls->n_load_balancer) {
+            ret = FALSE("deleted logical switch %s has load balancers",
+                        deleted_ls->name);
+            goto end;
+        }
+        if (deleted_ls->n_load_balancer_group) {
+            ret = FALSE("deleted logical switch %s has load balancer groups",
+                        deleted_ls->name);
+            goto end;
         }
 
-        if (!ls_handle_lsp_changes(ovnsb_idl_txn, deleted_ls,
-                                   ni, nd, od, &trk_data->trk_lsps)) {
-            goto fail;
+        ret = ls_handle_lsp_changes(ovnsb_idl_txn, deleted_ls,
+                                    ni, nd, od, &trk_data->trk_lsps);
+        if (!IS_TRUE(ret)) {
+            goto end;
         }
 
         hmap_remove(&nd->ls_datapaths.datapaths, &od->key_node);
@@ -4738,11 +4830,11 @@ northd_handle_ls_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
         trk_data->type |= NORTHD_TRACKED_LS_ACLS;
     }
 
-    return true;
-
-fail:
-    destroy_northd_data_tracked_changes(nd);
-    return false;
+end:
+    if (!IS_TRUE(ret)) {
+        destroy_northd_data_tracked_changes(nd);
+    }
+    return ret;
 }
 
 static bool

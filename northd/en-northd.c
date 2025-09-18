@@ -165,8 +165,13 @@ northd_nb_logical_switch_handler(struct engine_node *node,
 
     northd_get_input_data(node, &input_data);
 
-    if (!northd_handle_ls_changes(eng_ctx->ovnsb_idl_txn, &input_data, nd)) {
-        return EN_UNHANDLED("XXX FIXME");
+    struct annotated_bool ls_handle_result =
+        northd_handle_ls_changes(eng_ctx->ovnsb_idl_txn, &input_data, nd);
+    if (!IS_TRUE(ls_handle_result)) {
+        struct engine_input_handler_result res =
+            EN_UNHANDLED("%s", FAILURE_REASON(ls_handle_result));
+        annotated_bool_destroy(&ls_handle_result);
+        return res;
     }
 
     bool ipam_update = northd_handle_ipam_changes(nd);

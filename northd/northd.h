@@ -693,8 +693,10 @@ struct ovn_port {
     struct lport_addresses *ps_addrs;   /* Port security addresses. */
     unsigned int n_ps_addrs;
 
-    bool lsp_can_be_inc_processed; /* If it can be incrementally processed when
-                                      the port changes. */
+    struct annotated_bool lsp_can_be_inc_processed; /* If it can be
+                                                     * incrementally processed
+                                                     * when the port changes.
+                                                     */
 
     /* Logical router port data. */
     const struct nbrec_logical_router_port *nbrp; /* May be NULL. */
@@ -867,9 +869,10 @@ void ovnsb_db_run(struct ovsdb_idl_txn *ovnsb_txn,
                   const struct sbrec_ha_chassis_group_table *,
                   struct hmap *ls_ports,
                   struct hmap *lr_ports);
-bool northd_handle_ls_changes(struct ovsdb_idl_txn *,
-                              const struct northd_input *,
-                              struct northd_data *);
+struct annotated_bool northd_handle_ls_changes(
+    struct ovsdb_idl_txn *,
+    const struct northd_input *,
+    struct northd_data *);
 bool northd_handle_lr_changes(const struct northd_input *,
                               struct northd_data *);
 bool northd_handle_pgs_acl_changes(const struct northd_input *ni,
