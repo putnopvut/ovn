@@ -1575,3 +1575,11 @@ ovn_is_valid_vni(int64_t vni)
 {
     return vni >= 0 && (vni <= (1 << 24) - 1);
 }
+
+void
+annotated_bool_destroy(struct annotated_bool *ab) {
+    if (!IS_TRUE(*ab)) {
+        free(FAILURE_REASON(*ab));
+    }
+    *ab = TRUE;
+}

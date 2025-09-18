@@ -691,4 +691,27 @@ const char *datapath_get_nb_type(const struct sbrec_datapath_binding *sb);
 #define EITHER_GET_SUCCESS(EITHER_TYPE) EITHER_TYPE.result.success
 #define EITHER_GET_FAILURE(EITHER_TYPE) EITHER_TYPE.result.failure
 
+
+/* Annotated boolean.
+ * This is a special type of boolean where the "true" return is like normal,
+ * but the "false" return carries with it a reason string. This is useful in
+ * situations where we wish to log a failure reason associated with a false
+ * return.
+ */
+struct none_type { };
+#define NONE_SINGLETON {}
+
+EITHER(annotated_bool, struct none_type, char *);
+#define TRUE \
+    EITHER_SET_SUCCESS(annotated_bool, NONE_SINGLETON)
+#define FALSE(FMT, ...) \
+    EITHER_SET_FAILURE(annotated_bool, xasprintf(FMT __VA_OPT__(,) \
+                                                 __VA_ARGS__))
+#define IS_TRUE(ab) EITHER_SUCCESS((ab))
+#define FAILURE_REASON(ab) EITHER_GET_FAILURE((ab))
+#define ANNOTATED_BOOL_COPY(src) \
+    IS_TRUE((src)) ? TRUE : FALSE("%s", FAILURE_REASON((src)))
+
+void annotated_bool_destroy(struct annotated_bool *ab);
+
 #endif /* OVN_UTIL_H */
