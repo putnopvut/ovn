@@ -3814,7 +3814,7 @@ check multinode_nbctl lrp-add gw-router ro-public 00:00:00:00:02:01 20.0.0.1/8 2
 check multinode_nbctl lsp-add ls-public public-ro
 check multinode_nbctl lsp-set-type public-ro router
 check multinode_nbctl lsp-set-addresses public-ro router
-check multinode_nbctl lsp-set-options public-ro router-port=ro-local
+check multinode_nbctl lsp-set-options public-ro router-port=ro-public
 
 check multinode_nbctl lrp-set-gateway-chassis ro-public ovn-gw-1
 check multinode_nbctl lrp-set-redirect-type ro-public bridged
