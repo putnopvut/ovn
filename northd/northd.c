@@ -5067,13 +5067,14 @@ fail:
     return false;
 }
 
-bool
+struct annotated_bool
 northd_handle_sb_port_binding_changes(
     const struct sbrec_port_binding_table *sbrec_port_binding_table,
     struct hmap *ls_ports, struct hmap *lr_ports)
 {
     const struct sbrec_port_binding *pb;
     static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 5);
+    struct annotated_bool ret = TRUE;
     SBREC_PORT_BINDING_TABLE_FOR_EACH_TRACKED (pb, sbrec_port_binding_table) {
         bool is_router_port = is_pb_router_type(pb);
         struct ovn_port *op = NULL;
@@ -5102,10 +5103,11 @@ northd_handle_sb_port_binding_changes(
              * notification of that trasaction. So we just update the sb
              * pointer in northd data. Fallback to recompute otherwise. */
             if (!op) {
-                VLOG_WARN_RL(&rl, "A port-binding for %s is created but the "
+                ret = FALSE("A port-binding for %s is created but the "
                             "%s is not found.", pb->logical_port,
                             is_router_port ? "LRP" : "LSP");
-                return false;
+                VLOG_WARN_RL(&rl, "%s", FAILURE_REASON(ret));
+                break;
             }
             op->sb = pb;
         } else if (sbrec_port_binding_is_deleted(pb)) {
@@ -5114,9 +5116,10 @@ northd_handle_sb_port_binding_changes(
              * case. Fallback to recompute otherwise, to avoid dangling
              * sb idl pointers and other unexpected behavior. */
             if (op && op->sb == pb) {
-                VLOG_WARN_RL(&rl, "A port-binding for %s is deleted but the "
+                ret = FALSE("A port-binding for %s is deleted but the "
                             "LSP/LRP still exists.", pb->logical_port);
-                return false;
+                VLOG_WARN_RL(&rl, "%s", FAILURE_REASON(ret));
+                break;
             }
         } else {
             /* The PB is updated.
@@ -5134,19 +5137,21 @@ northd_handle_sb_port_binding_changes(
              *
              * Fallback to recompute for anything unexpected. */
             if (!op) {
-                VLOG_WARN_RL(&rl, "A port-binding for %s is updated but the "
+                ret = FALSE("A port-binding for %s is updated but the "
                             "%s is not found.", pb->logical_port,
                             is_router_port ? "LRP" : "LSP");
-                return false;
+                VLOG_WARN_RL(&rl, "%s", FAILURE_REASON(ret));
+                break;
             }
             if (op->sb != pb) {
-                VLOG_WARN_RL(&rl, "A port-binding for %s is updated with a new"
-                             "IDL row, which is unusual.", pb->logical_port);
-                return false;
+                ret = FALSE("A port-binding for %s is updated with a new"
+                            "IDL row, which is unusual.", pb->logical_port);
+                VLOG_WARN_RL(&rl, "%s", FAILURE_REASON(ret));
+                break;
             }
         }
     }
-    return true;
+    return ret;
 }
 
 /* Handler for lb_data engine changes.  It does the following

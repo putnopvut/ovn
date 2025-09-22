@@ -936,7 +936,7 @@ bool lflow_handle_ls_stateful_changes(struct ovsdb_idl_txn *,
                                       struct ls_stateful_tracked_data *,
                                       struct lflow_input *,
                                       struct lflow_table *lflows);
-bool northd_handle_sb_port_binding_changes(
+struct annotated_bool northd_handle_sb_port_binding_changes(
     const struct sbrec_port_binding_table *, struct hmap *ls_ports,
     struct hmap *lr_ports);
 

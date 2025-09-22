@@ -192,9 +192,15 @@ northd_sb_port_binding_handler(struct engine_node *node,
 
     northd_get_input_data(node, &input_data);
 
-    if (!northd_handle_sb_port_binding_changes(
-        input_data.sbrec_port_binding_table, &nd->ls_ports, &nd->lr_ports)) {
-        return EN_UNHANDLED("XXX FIXME");
+    struct annotated_bool sb_handle_result =
+        northd_handle_sb_port_binding_changes(
+            input_data.sbrec_port_binding_table, &nd->ls_ports,
+            &nd->lr_ports);
+    if (!IS_TRUE(sb_handle_result)) {
+        struct engine_input_handler_result res =
+            EN_UNHANDLED("%s", FAILURE_REASON(sb_handle_result));
+        annotated_bool_destroy(&sb_handle_result);
+        return res;
     }
 
     return EN_HANDLED_UNCHANGED;
