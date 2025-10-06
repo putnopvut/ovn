@@ -9940,15 +9940,32 @@ build_lswitch_arp_nd_responder_known_ips(struct ovn_port *op,
         for (size_t i = 0; i < op->n_lsp_addrs; i++) {
             for (size_t j = 0; j < op->lsp_addrs[i].n_ipv4_addrs; j++) {
                 ds_clear(match);
-                /* Do not reply on unicast ARPs, forward them to the target
-                 * to have ability to monitor target liveness via unicast
-                 * ARP requests.
-                */
                 ds_put_format(match,
                     "arp.tpa == %s && "
-                    "arp.op == 1 && "
-                    "eth.dst == ff:ff:ff:ff:ff:ff",
+                    "arp.op == 1",
                     op->lsp_addrs[i].ipv4_addrs[j].addr_s);
+
+                /* Do not reply on unicast ARPs, forward them to the target
+                 * to have ability to monitor target liveness via unicast
+                 * ARP requests. If proxy arp is configured, then we need
+                 * to set up flows to forward the packets. Otherwise, we
+                 * could end up replying with the proxy ARP erroneously.
+                 * Without proxy arp configured, these flows are
+                 * unnecessary since the packets will hit the default
+                 * "next" flow at priority 1.
+                 */
+                if (op->od->has_arp_proxy_port) {
+                    size_t match_len = match->length;
+                    ds_put_format(match, " && eth.dst == %s", op->lsp_addrs[i].ea_s);
+                    ovn_lflow_add_with_hint(lflows, op->od,
+                                            S_SWITCH_IN_ARP_ND_RSP, 50,
+                                            ds_cstr(match),
+                                            "next;", &op->nbsp->header_,
+                                            op->lflow_ref);
+                    ds_truncate(match, match_len);
+                }
+                ds_put_cstr(match, " && eth.dst == ff:ff:ff:ff:ff:ff");
+
                 ds_clear(actions);
                 ds_put_format(actions,
                     "eth.dst = eth.src; "
@@ -9985,7 +10002,8 @@ build_lswitch_arp_nd_responder_known_ips(struct ovn_port *op,
                 ds_put_format(match, " && inport == %s", op->json_key);
                 ovn_lflow_add_with_lport_and_hint(lflows, op->od,
                                                   S_SWITCH_IN_ARP_ND_RSP,
-                                                  100, ds_cstr(match),
+                                                  100,
+                                                  ds_cstr(match),
                                                   "next;", op->key,
                                                   &op->nbsp->header_,
                                                   op->lflow_ref);
