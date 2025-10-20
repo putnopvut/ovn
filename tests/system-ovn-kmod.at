@@ -1006,7 +1006,12 @@ AT_CLEANUP
 OVN_FOR_EACH_NORTHD([
 AT_SETUP([Load Balancer LS hairpin IPv6 UDP - larger than MTU])
 AT_SKIP_IF([test $HAVE_NC = no])
-AT_SKIP_IF([test "$GITHUB_ACTIONS" = "true"])
+m4_if(m4_index([$1], [orig tuple]), -1, [], [
+  dnl XXX: 6.8.0-1014-azure #16~22.04.1-Ubuntu kernel in GitHub Actions
+  dnl contains a known conntrack bug, but doesn't have a fix for it:
+  dnl   a23ac973f67f ("openvswitch: get related ct labels from its master
+  dnl                  if it is not confirmed")
+  AT_SKIP_IF([test "$GITHUB_ACTIONS" = "true"])])
 AT_KEYWORDS([lb])
 
 ovn_start
