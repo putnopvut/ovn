@@ -242,15 +242,19 @@ lb_data_load_balancer_group_handler(struct engine_node *node, void *data)
     lb_data->tracked = true;
     struct tracked_lb_data *trk_lb_data = &lb_data->tracked_lb_data;
     const struct nbrec_load_balancer_group *tracked_lb_group;
+    VLOG_INFO("New load balancer group handler invocation");
     NBREC_LOAD_BALANCER_GROUP_TABLE_FOR_EACH_TRACKED (tracked_lb_group,
                                                       nb_lbg_table) {
+        VLOG_INFO("Iterating over lb group %s ("UUID_FMT")", tracked_lb_group->name, UUID_ARGS(&tracked_lb_group->header_.uuid));
         /* "New" + "Deleted" is a no-op. */
         if (nbrec_load_balancer_group_is_new(tracked_lb_group)
             && nbrec_load_balancer_group_is_deleted(tracked_lb_group)) {
+            VLOG_INFO("LB group %s("UUID_FMT") is reported as new and deleted?", tracked_lb_group->name, UUID_ARGS(&tracked_lb_group->header_.uuid));
             continue;
         }
 
         if (nbrec_load_balancer_group_is_new(tracked_lb_group)) {
+            VLOG_INFO("Calling create_lb_group from the is_new scenario");
             struct ovn_lb_group *lb_group =
                 create_lb_group(tracked_lb_group, &lb_data->lbs,
                                 &lb_data->lbgrps);
@@ -273,6 +277,7 @@ lb_data_load_balancer_group_handler(struct engine_node *node, void *data)
         }
 
         if (nbrec_load_balancer_group_is_deleted(tracked_lb_group)) {
+            VLOG_INFO("We detected a deleted lb group and are removing it from the hmap");
             hmap_remove(&lb_data->lbgrps, &lb_group->hmap_node);
             add_deleted_lbgrp_to_tracked_data(lb_group, trk_lb_data);
             trk_lb_data->has_routable_lb |= lb_group->has_routable_lb;
@@ -357,6 +362,7 @@ lb_data_handle_updated_logical_switch(const struct nbrec_logical_switch *nbs,
     }
 
     if (ls_lbgrps_changed) {
+        VLOG_INFO("LS lbgroups have changed");
         handle_od_lbgrp_changes(nbs->load_balancer_group,
                                 nbs->n_load_balancer_group,
                                 od_lb_data, lb_data, codlb);
@@ -400,6 +406,7 @@ lb_data_synced_logical_switch_handler(struct engine_node *node, void *data)
     HMAPX_FOR_EACH (h_node, &synced_lses->updated) {
         struct ovn_synced_logical_switch *synced = h_node->data;
         nbs = synced->nb;
+        VLOG_INFO("Handling updated logical switch %s", nbs->name);
         changed |= lb_data_handle_updated_logical_switch(nbs, lb_data,
                                                          trk_lb_data, false);
     }
@@ -555,6 +562,7 @@ build_lbs(const struct nbrec_load_balancer_table *nbrec_load_balancer_table,
     const struct nbrec_load_balancer_group *nbrec_lb_group;
     NBREC_LOAD_BALANCER_GROUP_TABLE_FOR_EACH (nbrec_lb_group,
                                               nbrec_lb_group_table) {
+        VLOG_INFO("Calling create_lb_group from recompute path");
         create_lb_group(nbrec_lb_group, lbs, lb_groups);
     }
 }
@@ -715,16 +723,20 @@ handle_od_lbgrp_changes(struct nbrec_load_balancer_group **nbrec_lbgrps,
     uuidset_init(od_lb_data->lbgrps);
     for (size_t i = 0; i < n_nbrec_lbgrps; i++) {
         const struct uuid *lbgrp_uuid = &nbrec_lbgrps[i]->header_.uuid;
+        VLOG_INFO("Processing lb group "UUID_FMT" on the switch", UUID_ARGS(&nbrec_lbgrps[i]->header_.uuid));
         uuidset_insert(od_lb_data->lbgrps, lbgrp_uuid);
 
         if (!uuidset_find_and_delete(pre_lbgrp_uuids, lbgrp_uuid)) {
             /* Add this lb group to the tracked data. */
+            VLOG_INFO("Didn't find it in the old uuid set");
             uuidset_insert(&codlb->assoc_lbgrps, lbgrp_uuid);
 
             if (!trk_lb_data->has_routable_lb) {
+                VLOG_INFO("Doesn't have a routable");
                 struct ovn_lb_group *lbgrp =
                     ovn_lb_group_find(&lb_data->lbgrps, lbgrp_uuid);
                 ovs_assert(lbgrp);
+                VLOG_INFO("Found lbgrp?");
                 trk_lb_data->has_routable_lb |= lbgrp->has_routable_lb;
             }
         }

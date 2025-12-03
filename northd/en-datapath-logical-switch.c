@@ -136,11 +136,18 @@ datapath_logical_switch_handler(struct engine_node *node, void *data)
 
     const struct nbrec_logical_switch *nbs;
     NBREC_LOGICAL_SWITCH_TABLE_FOR_EACH_TRACKED (nbs, nb_ls_table) {
+
+        VLOG_INFO("Inspecting logical switch %s("UUID_FMT")", nbs->name, UUID_ARGS(&nbs->header_.uuid));
+        if (nbrec_logical_switch_is_new(nbs) && nbrec_logical_switch_is_deleted(nbs)) {
+            VLOG_INFO("logical switch %s("UUID_FMT") is new and deleted?!", nbs->name, UUID_ARGS(&nbs->header_.uuid));
+        }
         struct ovn_unsynced_datapath *udp =
             ovn_unsynced_datapath_find(map, &nbs->header_.uuid);
 
         if (nbrec_logical_switch_is_new(nbs)) {
+            VLOG_INFO("Logical switch %s is NEW", nbs->name);
             if (udp) {
+                VLOG_INFO("Falling back to recompute because we have a UDP already");
                 return EN_UNHANDLED;
             }
             udp = datapath_unsynced_new_logical_switch_handler(nbs,
@@ -148,12 +155,15 @@ datapath_logical_switch_handler(struct engine_node *node, void *data)
                                                                map);
             hmapx_add(&map->new, udp);
         } else if (nbrec_logical_switch_is_deleted(nbs)) {
+            VLOG_INFO("Logical switch %s is DELETED", nbs->name);
             if (!udp) {
+                VLOG_INFO("Falling back to recompute because we can't find UDP");
                 return EN_UNHANDLED;
             }
             hmap_remove(&map->dps, &udp->hmap_node);
             hmapx_add(&map->deleted, udp);
         } else {
+            VLOG_INFO("Logical switch %s is UPDATED", nbs->name);
             if (!udp) {
                 return EN_UNHANDLED;
             }

@@ -483,6 +483,7 @@ engine_compute(struct engine_node *node, bool recompute_allowed)
             }
             if (handled == EN_UNHANDLED) {
                 input_node->get_compute_failure_info(input_node);
+                VLOG_INFO("Input %s for node %s failed handler", node->inputs[i].node->name, node->name);
                 engine_recompute(node, recompute_allowed,
                                  "failed handler for input %s",
                                  input_node->name);
