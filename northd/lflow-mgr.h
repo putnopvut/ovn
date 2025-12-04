@@ -145,14 +145,6 @@ void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
         } \
     )
 
-#define ovn_lflow_add_drop_with_lport_hint_and_desc(LFLOW_TABLE, OD, STAGE, \
-                                                    PRIORITY, MATCH,  \
-                                                    IN_OUT_PORT, STAGE_HINT, \
-                                                    DESCRIPTION, LFLOW_REF) \
-    lflow_table_add_lflow(LFLOW_TABLE, OD, NULL, 0, STAGE, PRIORITY, MATCH, \
-                          debug_drop_action(), IN_OUT_PORT, NULL, STAGE_HINT, \
-                          OVS_SOURCE_LOCATOR, DESCRIPTION, LFLOW_REF)
-
 struct sbrec_logical_dp_group;
 
 struct ovn_dp_group {
