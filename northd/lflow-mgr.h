@@ -93,17 +93,7 @@ struct lflow_table_add_args {
     const char *where;
 };
 
-void lflow_table_add_lflow__(struct lflow_table_add_args *args);
-
-void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
-                           const unsigned long *dp_bitmap,
-                           size_t dp_bitmap_len, enum ovn_stage stage,
-                           uint16_t priority, const char *match,
-                           const char *actions, const char *io_port,
-                           const char *ctrl_meter,
-                           const struct ovsdb_idl_row *stage_hint,
-                           const char *where, const char *flow_desc,
-                           struct lflow_ref *);
+void lflow_table_add_lflow(struct lflow_table_add_args *args);
 
 
 #define WITH_HINT(HINT) .stage_hint = HINT
@@ -131,7 +121,7 @@ void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
 
 #define ovn_lflow_add(LFLOW_TABLE, OD, STAGE, PRIORITY, MATCH, ACTIONS, \
                       LFLOW_REF, ...) \
-    lflow_table_add_lflow__( \
+    lflow_table_add_lflow( \
         &(struct lflow_table_add_args) { \
             .table = LFLOW_TABLE, \
             .od = OD, \
