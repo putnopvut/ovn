@@ -107,6 +107,17 @@ void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
 
 
 #define WITH_HINT(HINT) .stage_hint = HINT
+/* The IN_OUT_PORT argument tells the lport name that appears in the MATCH,
+ * which helps ovn-controller to bypass lflows parsing when the lport is
+ * not local to the chassis. The critiera of the lport to be added using this
+ * argument:
+ *
+ * - For ingress pipeline, the lport that is used to match "inport".
+ * - For egress pipeline, the lport that is used to match "outport".
+ *
+ * For now, only LS pipelines should use this argument
+ */
+#define WITH_IO_PORT(IO_PORT) .io_port = IO_PORT
 
 /* Adds a row with the specified contents to the Logical_Flow table. */
 #define ovn_lflow_add_with_hint__(LFLOW_TABLE, OD, STAGE, PRIORITY, MATCH, \
@@ -121,23 +132,6 @@ void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
                                     STAGE_HINT, LFLOW_REF) \
     lflow_table_add_lflow(LFLOW_TABLE, NULL, DP_BITMAP, DP_BITMAP_LEN, STAGE, \
                           PRIORITY, MATCH, ACTIONS, NULL, NULL, STAGE_HINT, \
-                          OVS_SOURCE_LOCATOR, NULL, LFLOW_REF)
-
-/* This macro is similar to ovn_lflow_add_with_hint, except that it requires
- * the IN_OUT_PORT argument, which tells the lport name that appears in the
- * MATCH, which helps ovn-controller to bypass lflows parsing when the lport is
- * not local to the chassis. The critiera of the lport to be added using this
- * argument:
- *
- * - For ingress pipeline, the lport that is used to match "inport".
- * - For egress pipeline, the lport that is used to match "outport".
- *
- * For now, only LS pipelines should use this macro.  */
-#define ovn_lflow_add_with_lport_and_hint(LFLOW_TABLE, OD, STAGE, PRIORITY, \
-                                          MATCH, ACTIONS, IN_OUT_PORT, \
-                                          STAGE_HINT, LFLOW_REF) \
-    lflow_table_add_lflow(LFLOW_TABLE, OD, NULL, 0, STAGE, PRIORITY, MATCH, \
-                          ACTIONS, IN_OUT_PORT, NULL, STAGE_HINT, \
                           OVS_SOURCE_LOCATOR, NULL, LFLOW_REF)
 
 /* Adds a row with the specified contents to the Logical_Flow table. */
@@ -160,7 +154,6 @@ void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
             __VA_ARGS__ \
         } \
     )
-
 
 #define ovn_lflow_add_drop_with_desc(LFLOW_TABLE, OD, STAGE, PRIORITY, MATCH, \
                                      DESCRIPTION, LFLOW_REF) \
