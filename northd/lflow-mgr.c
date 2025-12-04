@@ -776,6 +776,14 @@ lflow_table_add_lflow(struct lflow_table *lflow_table,
 void
 lflow_table_add_lflow__(struct lflow_table_add_args *args)
 {
+    /* It is invalid for both args.dp_bitmap and args.od to be
+     * Non-NULL. We favor the non-NULL args.dp_bitmap over the
+     * non-NULL args.od
+     */
+    if (args->dp_bitmap) {
+        args->od = NULL;
+    }
+
     lflow_table_add_lflow(args->table, args->od, args->dp_bitmap,
                           args->dp_bitmap_len, args->stage, args->priority,
                           args->match, args->actions, args->io_port,

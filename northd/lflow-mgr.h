@@ -107,6 +107,9 @@ void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
 
 
 #define WITH_HINT(HINT) .stage_hint = HINT
+#define WITH_DP_GROUP(DP_BITMAP, DP_BITMAP_LEN) \
+    .dp_bitmap = DP_BITMAP, \
+    .dp_bitmap_len = DP_BITMAP_LEN
 /* The IN_OUT_PORT argument tells the lport name that appears in the MATCH,
  * which helps ovn-controller to bypass lflows parsing when the lport is
  * not local to the chassis. The critiera of the lport to be added using this
@@ -119,14 +122,6 @@ void lflow_table_add_lflow(struct lflow_table *, const struct ovn_datapath *,
  */
 #define WITH_IO_PORT(IO_PORT) .io_port = IO_PORT
 #define WITH_CTRL_METER(CTRL_METER) .ctrl_meter = CTRL_METER
-
-/* Adds a row with the specified contents to the Logical_Flow table. */
-#define ovn_lflow_add_with_dp_group(LFLOW_TABLE, DP_BITMAP, DP_BITMAP_LEN, \
-                                    STAGE, PRIORITY, MATCH, ACTIONS, \
-                                    STAGE_HINT, LFLOW_REF) \
-    lflow_table_add_lflow(LFLOW_TABLE, NULL, DP_BITMAP, DP_BITMAP_LEN, STAGE, \
-                          PRIORITY, MATCH, ACTIONS, NULL, NULL, STAGE_HINT, \
-                          OVS_SOURCE_LOCATOR, NULL, LFLOW_REF)
 
 /* Adds a row with the specified contents to the Logical_Flow table. */
 #define ovn_lflow_add_default_drop(LFLOW_TABLE, OD, STAGE, LFLOW_REF, ...) \
