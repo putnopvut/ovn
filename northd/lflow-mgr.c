@@ -773,6 +773,16 @@ lflow_table_add_lflow(struct lflow_table *lflow_table,
     lflow_hash_unlock(hash_lock);
 }
 
+void
+lflow_table_add_lflow__(struct lflow_table_add_args *args)
+{
+    lflow_table_add_lflow(args->table, args->od, args->dp_bitmap,
+                          args->dp_bitmap_len, args->stage, args->priority,
+                          args->match, args->actions, args->io_port,
+                          args->ctrl_meter, args->stage_hint, args->where,
+                          args->flow_desc, args->lflow_ref);
+}
+
 struct ovn_dp_group *
 ovn_dp_group_get(struct hmap *dp_groups,
                  const struct dynamic_bitmap *desired_bitmap,
