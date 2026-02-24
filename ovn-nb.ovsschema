@@ -1,7 +1,7 @@
 {
     "name": "OVN_Northbound",
     "version": "7.18.0",
-    "cksum": "2209642917 45516",
+    "cksum": "540572363 46351",
     "tables": {
         "NB_Global": {
             "columns": {
@@ -887,7 +887,23 @@
                 "complement": {"type": {"key": "string", "min": 0, "max": 1}}
             },
             "indexes": [["name"]],
-            "isRoot": false
+            "isRoot": false},
+        "NAT_Service": {
+            "columns": {
+                "name": {"type": "string"},
+                "nat": {"type": {"key": {"type": "uuid",
+                                         "refTable": "NAT",
+                                         "refType": "strong"}}},
+                "ports": {"type": {"key": {"type": "uuid",
+                                           "refTable": "Service_Port",
+                                           "refType": "strong"},
+                                   "min": 0,
+                                   "max": "unlimited"}},
+                "direction": {"type": {"key": {"type": "string",
+                                               "enum": ["set", ["ingress",
+                                                                "egress"]]}}}
+            },
+            "isRoot": true
         }
     }
 }

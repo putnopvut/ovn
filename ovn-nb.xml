@@ -6752,4 +6752,27 @@ or
       properly.
     </column>
   </table>
+  <table name="NAT_Service" title="Composable NAT service">
+    <column name="name">
+        The name to use for this NAT service.
+    </column>
+    <column name="nat">
+        A NAT rule for this particular service.
+    </column>
+    <column name="direction">
+        If set to <code>ingress</code>, then the NAT operation is performed
+        on packets arriving into the logical datapath on the attached
+        logical port. The NAT operation is undone when the packet is
+        transmitted out of the logical datapath on the attached logical
+        port.
+
+        If set to <code>egress</code>, then the NAT operation is performed
+        on packets trasmitted out the logical datapath on the attached
+        logical port. The NAT operation is undone when the packet is
+        received on the attached logical port.
+    </column>
+    <column name="ports">
+      The <ref table="Service_Port"/>s beloning to this NAT service.
+    </column>
+  </table>
 </database>
