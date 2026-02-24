@@ -23,6 +23,7 @@
 static const char *ovn_datapath_strings[] = {
     [DP_SWITCH] = "logical-switch",
     [DP_ROUTER] = "logical-router",
+    [DP_NAT_SERVICE] = "nat-service",
     [DP_MAX] = "<invalid>",
 };
 

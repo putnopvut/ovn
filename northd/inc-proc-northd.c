@@ -49,6 +49,7 @@
 #include "en-group-ecmp-route.h"
 #include "en-datapath-logical-router.h"
 #include "en-datapath-logical-switch.h"
+#include "en-datapath-nat-service.h"
 #include "en-datapath-sync.h"
 #include "unixctl.h"
 #include "util.h"
@@ -75,7 +76,8 @@ static unixctl_cb_func chassis_features_list;
     NB_NODE(sampling_app) \
     NB_NODE(network_function) \
     NB_NODE(network_function_group) \
-    NB_NODE(logical_switch_port_health_check)
+    NB_NODE(logical_switch_port_health_check) \
+    NB_NODE(nat_service)
 
     enum nb_engine_node {
 #define NB_NODE(NAME) NB_##NAME,
@@ -190,9 +192,11 @@ static ENGINE_NODE(dynamic_routes);
 static ENGINE_NODE(group_ecmp_route, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(datapath_logical_router, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(datapath_logical_switch, CLEAR_TRACKED_DATA);
+static ENGINE_NODE(datapath_nat_service, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(datapath_sync, CLEAR_TRACKED_DATA, SB_WRITE);
 static ENGINE_NODE(datapath_synced_logical_router, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(datapath_synced_logical_switch, CLEAR_TRACKED_DATA);
+static ENGINE_NODE(datapath_synced_nat_service, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(ic_learned_svc_monitors, SB_WRITE);
 
 void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
@@ -224,6 +228,9 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
     engine_add_input(&en_datapath_logical_router, &en_nb_logical_router,
                      en_datapath_logical_router_logical_router_handler);
 
+    engine_add_input(&en_datapath_nat_service, &en_nb_nat_service,
+                     datapath_nat_service_handler);
+
     engine_add_input(&en_datapath_sync, &en_global_config,
                      datapath_sync_global_config_handler);
     engine_add_input(&en_datapath_sync, &en_sb_datapath_binding,
@@ -232,11 +239,15 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                      datapath_sync_logical_switch_handler);
     engine_add_input(&en_datapath_sync, &en_datapath_logical_router,
                      datapath_sync_logical_router_handler);
+    engine_add_input(&en_datapath_sync, &en_datapath_nat_service,
+                     datapath_sync_nat_service_handler);
 
     engine_add_input(&en_datapath_synced_logical_router, &en_datapath_sync,
                      en_datapath_synced_logical_router_datapath_sync_handler);
     engine_add_input(&en_datapath_synced_logical_switch, &en_datapath_sync,
                      en_datapath_synced_logical_switch_datapath_sync_handler);
+    engine_add_input(&en_datapath_synced_nat_service, &en_datapath_sync,
+                     en_datapath_synced_nat_service_datapath_sync_handler);
 
     engine_add_input(&en_lb_data, &en_nb_load_balancer,
                      lb_data_load_balancer_handler);
@@ -491,6 +502,12 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                      northd_output_advertised_route_sync_handler);
     engine_add_input(&en_northd_output, &en_advertised_mac_binding_sync,
                      northd_output_advertised_mac_binding_sync_handler);
+    /* XXX This is temporarily needed since there are no consumers of
+     * synced NAT services. This ensures that the synced nat engine node
+     * actually runs. Since this is temporary, we don't really care about
+     * defining a change handler.
+     */
+    engine_add_input(&en_northd_output, &en_datapath_synced_nat_service, NULL);
 
     struct engine_arg engine_arg = {
         .nb_idl = nb->idl,

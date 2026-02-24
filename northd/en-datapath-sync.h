@@ -34,6 +34,8 @@ datapath_sync_logical_switch_handler(struct engine_node *, void *data);
 enum engine_input_handler_result
 datapath_sync_logical_router_handler(struct engine_node *, void *data);
 enum engine_input_handler_result
+datapath_sync_nat_service_handler(struct engine_node *, void *data);
+enum engine_input_handler_result
 datapath_sync_sb_datapath_binding(struct engine_node *, void *data);
 enum engine_input_handler_result
 datapath_sync_global_config_handler(struct engine_node *, void *data);

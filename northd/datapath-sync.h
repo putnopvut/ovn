@@ -43,6 +43,7 @@ enum ovn_datapath_type {
     DP_MIN = 0,
     DP_SWITCH = DP_MIN,
     DP_ROUTER,
+    DP_NAT_SERVICE,
     DP_MAX,
 };
 

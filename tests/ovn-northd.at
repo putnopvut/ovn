@@ -18931,6 +18931,56 @@ AT_CLEANUP
 ])
 
 OVN_FOR_EACH_NORTHD_NO_HV([
+AT_SETUP([NAT Service SB datapath binding])
+ovn_start
+check_uuid ovn-nbctl --wait=sb \
+    --id=@nat create NAT type=dnat -- \
+    create NAT_Service name=ns1 direction=ingress nat=@nat
+
+check_row_count Datapath_Binding 1
+
+nb_nat_uuid=$(fetch_column nb:NAT_Service _uuid name=ns1)
+
+check_column "$nb_nat_uuid" Datapath_Binding nb_uuid
+
+check ovn-nbctl --wait=sb destroy NAT_Service $nb_nat_uuid
+check_row_count Datapath_Binding 0
+
+OVN_CLEANUP_NORTHD
+AT_CLEANUP
+])
+
+OVN_FOR_EACH_NORTHD_NO_HV([
+AT_SETUP([Unsynced NAT Service incremental processing])
+ovn_start
+
+# Create
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check_uuid ovn-nbctl --wait=sb \
+    --id=@nat create NAT type=dnat -- \
+    create NAT_Service name=ns1 direction=ingress nat=@nat
+check_engine_stats datapath_nat_service norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+nat_uuid=$(fetch_column nb:NAT_Service _uuid name=ns1)
+
+# Modify
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb set NAT_Service $nat_uuid direction=egress
+check_engine_stats datapath_nat_service norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+# Delete
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb destroy NAT_Service $nat_uuid
+check_engine_stats datapath_nat_service norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+OVN_CLEANUP_NORTHD
+AT_CLEANUP
+])
+
+OVN_FOR_EACH_NORTHD_NO_HV([
 AT_SETUP([Datapath Sync incremental processing])
 ovn_start
 
@@ -18965,6 +19015,25 @@ check_engine_stats datapath_sync norecompute compute
 
 check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
 check ovn-nbctl --wait=sb lr-del lr0
+check_engine_stats datapath_sync norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check_uuid ovn-nbctl --wait=sb \
+    --id=@nat create NAT type=dnat -- \
+    create NAT_Service name=ns1 direction=ingress nat=@nat
+check_engine_stats datapath_sync norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+nat_uuid=$(fetch_column nb:NAT_Service _uuid name=ns1)
+
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb set NAT_Service $nat_uuid direction=egress
+check_engine_stats datapath_sync norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb destroy NAT_Service $nat_uuid
 check_engine_stats datapath_sync norecompute compute
 CHECK_NO_CHANGE_AFTER_RECOMPUTE
 
@@ -19057,6 +19126,38 @@ check ovn-nbctl --wait=sb lr-del lr0
 check_engine_stats datapath_synced_logical_switch norecompute compute
 check_engine_stats datapath_synced_logical_router norecompute compute
 CHECK_NO_CHANGE_AFTER_RECOMPUTE
+OVN_CLEANUP_NORTHD
+AT_CLEANUP
+])
+
+OVN_FOR_EACH_NORTHD_NO_HV([
+AT_SETUP([Synced NAT service incremental procesesing])
+ovn_start
+# Like with synced logical routers and logical switches, synced NAT service
+# should be able to run incrementally any time that the datapath sync node
+# can process changes incrementally. Therefore, the tests here are exactly
+# the same as used in the "Datapath sync incremental processing" test. Here,
+# we check the synced datapath engine node instead.
+
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check_uuid ovn-nbctl --wait=sb \
+    --id=@nat create NAT type=dnat -- \
+    create NAT_Service name=ns1 direction=ingress nat=@nat
+check_engine_stats datapath_synced_nat_service norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+nat_uuid=$(fetch_column nb:NAT_Service _uuid name=ns1)
+
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb set NAT_Service $nat_uuid direction=egress
+check_engine_stats datapath_synced_nat_service norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb destroy NAT_Service $nat_uuid
+check_engine_stats datapath_synced_nat_service norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
 OVN_CLEANUP_NORTHD
 AT_CLEANUP
 ])

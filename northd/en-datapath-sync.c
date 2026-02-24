@@ -462,6 +462,20 @@ datapath_sync_logical_router_handler(struct engine_node *node, void *data)
 }
 
 enum engine_input_handler_result
+datapath_sync_nat_service_handler(struct engine_node *node, void *data)
+{
+    const struct ovn_unsynced_datapath_map *map =
+        engine_get_input_data("datapath_nat_service", node);
+    const struct engine_context *eng_ctx = engine_get_context();
+    const struct ed_type_global_config *global_config =
+        engine_get_input_data("global_config", node);
+
+    return datapath_sync_unsynced_datapath_handler(map, global_config,
+                                                   eng_ctx->ovnsb_idl_txn,
+                                                   DP_NAT_SERVICE,
+                                                   data);
+}
+enum engine_input_handler_result
 datapath_sync_global_config_handler(struct engine_node *node, void *data)
 {
     const struct ed_type_global_config *global_config =
@@ -569,12 +583,15 @@ en_datapath_sync_run(struct engine_node *node , void *data)
         engine_get_input_data("datapath_logical_switch", node);
     const struct ovn_unsynced_datapath_map *unsynced_lr_map =
         engine_get_input_data("datapath_logical_router", node);
+    const struct ovn_unsynced_datapath_map *unsynced_ns_map =
+        engine_get_input_data("datapath_nat_service", node);
 
     const struct ovn_unsynced_datapath_map *input_maps[DP_MAX];
     struct all_synced_datapaths *all_synced_datapaths = data;
 
     input_maps[unsynced_ls_map->dp_type] = unsynced_ls_map;
     input_maps[unsynced_lr_map->dp_type] = unsynced_lr_map;
+    input_maps[unsynced_ns_map->dp_type] = unsynced_ns_map;
 
     size_t num_datapaths = 0;
     for (enum ovn_datapath_type i = DP_MIN; i < DP_MAX; i++) {

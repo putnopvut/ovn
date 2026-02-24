@@ -3254,6 +3254,7 @@ tcp.flags = RST;
         <ul>
           <li><code>logical-switch</code></li>
           <li><code>logical-router</code></li>
+          <li><code>nat-service</code></li>
         </ul>
       </column>
 
