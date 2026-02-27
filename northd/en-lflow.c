@@ -35,6 +35,7 @@
 #include "northd.h"
 #include "timeval.h"
 #include "openvswitch/vlog.h"
+#include "stopwatch.h"
 
 VLOG_DEFINE_THIS_MODULE(en_lflow);
 
@@ -114,6 +115,10 @@ lflow_get_input_data(struct engine_node *node,
         engine_get_input_data("sampling_app", node);
     lflow_input->sampling_apps = &sampling_app_data->apps;
     lflow_input->dps = all_dps->synced_dps;
+
+    const struct ovn_synced_nat_service_map *nat_services =
+        engine_get_input_data("datapath_synced_nat_service", node);
+    lflow_input->nat_services = nat_services;
 }
 
 enum engine_node_state
@@ -130,8 +135,16 @@ en_lflow_run(struct engine_node *node, void *data)
     lflow_reset_northd_refs(&lflow_input);
     lflow_ref_clear(lflow_input.igmp_lflow_ref);
 
-    build_lflows(eng_ctx->ovnsb_idl_txn, &lflow_input,
-                 lflow_data->lflow_table);
+    build_lflows(&lflow_input, lflow_data->lflow_table);
+
+    stopwatch_start(LFLOWS_TO_SB_STOPWATCH_NAME, time_msec());
+    lflow_table_sync_to_sb(lflow_data->lflow_table, eng_ctx->ovnsb_idl_txn,
+                           lflow_input.dps,
+                           lflow_input.ovn_internal_version_changed,
+                           lflow_input.sbrec_logical_flow_table,
+                           lflow_input.sbrec_logical_dp_group_table);
+
+    stopwatch_stop(LFLOWS_TO_SB_STOPWATCH_NAME, time_msec());
 
     return EN_UPDATED;
 }
