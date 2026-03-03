@@ -30,6 +30,7 @@
 #include "en-group-ecmp-route.h"
 #include "en-datapath-sync.h"
 #include "lflow-mgr.h"
+#include "lflow-nat.h"
 
 #include "lib/inc-proc-eng.h"
 #include "northd.h"
@@ -121,6 +122,13 @@ lflow_get_input_data(struct engine_node *node,
     lflow_input->nat_services = nat_services;
 }
 
+static void
+build_service_lflows(const struct lflow_input *lflow_input,
+                     struct lflow_table *lflow_table)
+{
+    build_nat_service_lflows(lflow_input->nat_services, lflow_table);
+}
+
 enum engine_node_state
 en_lflow_run(struct engine_node *node, void *data)
 {
@@ -136,6 +144,8 @@ en_lflow_run(struct engine_node *node, void *data)
     lflow_ref_clear(lflow_input.igmp_lflow_ref);
 
     build_lflows(&lflow_input, lflow_data->lflow_table);
+
+    build_service_lflows(&lflow_input, lflow_data->lflow_table);
 
     stopwatch_start(LFLOWS_TO_SB_STOPWATCH_NAME, time_msec());
     lflow_table_sync_to_sb(lflow_data->lflow_table, eng_ctx->ovnsb_idl_txn,

@@ -282,6 +282,7 @@ struct lflow_input {
     const struct hmap *local_svc_monitors_map;
     const struct hmap *ic_learned_svc_monitors_map;
     struct lflow_ref *ic_learned_svc_monitors_lflow_ref;
+    const struct ovn_synced_nat_service_map *nat_services;
 };
 
 extern int parallelization_state;
