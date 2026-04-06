@@ -56,6 +56,8 @@ northd_ovn_northd_SOURCES = \
 	northd/en-learned-route-sync.h \
 	northd/en-group-ecmp-route.c \
 	northd/en-group-ecmp-route.h \
+	northd/en-port-binding-service.c \
+	northd/en-port-binding-service.h \
 	northd/inc-proc-northd.c \
 	northd/inc-proc-northd.h \
 	northd/ipam.c \

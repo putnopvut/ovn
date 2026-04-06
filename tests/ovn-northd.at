@@ -21034,3 +21034,336 @@ check_column "$global_svc_mon_mac" sb:Service_Monitor src_mac port=2
 OVN_CLEANUP_NORTHD
 AT_CLEANUP
 ])
+
+OVN_FOR_EACH_NORTHD_NO_HV([
+AT_SETUP([service ports])
+ovn_start
+check ovn-nbctl ls-add sw
+check ovn-nbctl lsp-add sw swp1
+check_uuid ovn-nbctl --id=@nat create NAT type=dnat -- \
+    --id=@nat_service create NAT_Service name=ns1 direction=ingress nat=@nat
+check ovn-nbctl --wait=sb sync
+
+ns1_uuid=$(fetch_column nb:NAT_Service _uuid name=ns1)
+
+dnl Add two Service_Ports to the NAT_Service.
+check_uuid ovn-nbctl --id=@p1 create Service_Port name=ns1-p1 -- \
+      --id=@p2 create Service_Port name=ns1-p2 -- \
+      set NAT_Service $ns1_uuid ports="@p1 @p2"
+check ovn-nbctl --wait=sb sync
+
+ns1_p1_uuid=$(fetch_column nb:Service_Port _uuid name=ns1-p1)
+ns1_p2_uuid=$(fetch_column nb:Service_Port _uuid name=ns1-p2)
+
+dnl Since the Service_Ports are not connected to swp1, there should
+dnl be no Port_Bindings for them.
+check_row_count Port_Binding 1
+
+dnl Properly set up the chain. The initial chain will look like this:
+dnl
+dnl
+dnl swp1<----->ns1-p1<--->[NS1]<---->ns1-p2
+dnl ns1-p1 and ns1-p2 are complements, and
+dnl ns1-p1 and swp1 are peers.
+check ovn-nbctl set Service_Port $ns1_p1_uuid peer="swp1" complement="ns1-p2" -- \
+    set Service_Port $ns1_p2_uuid complement="ns1-p1" -- \
+    lsp-set-options swp1 service_peer_port="ns1-p1"
+check ovn-nbctl --wait=sb sync
+
+ovn-nbctl list Logical_Switch_Port
+
+dnl Since we have a proper chain, we should have SB Port_Bindings for the
+dnl Service_Ports now.
+check_row_count Port_Binding 3
+
+dnl Let's make sure that all of the southbound data is correct.
+swp1_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="swp1")
+ns1_p1_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns1-p1")
+ns1_p2_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns1-p2")
+
+ovn-sbctl list Port_Binding
+
+AT_CHECK([ovn-sbctl get Port_Binding $swp1_sb_uuid options:service_peer_port],
+[0], [ns1-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p1_sb_uuid options:service_peer_port],
+[0], [swp1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p1_sb_uuid options:service_complement_port],
+[0], [ns1-p2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p2_sb_uuid options:service_complement_port],
+[0], [ns1-p1
+])
+
+dnl The switch port should not have a complement set, and the final port in the chain should not
+dnl have a peer set.
+AT_CHECK([ovn-sbctl get Port_Binding $swp1_sb_uuid options:service_complement_port],
+[1], [ignore], [ignore])
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p2_sb_uuid options:service_peer_port],
+[1], [ignore], [ignore])
+
+dnl Let's make the chain a bit bigger by adding a second NAT service to the chain.
+dnl Now the chain will look like:
+dnl swp1<----->ns1-p1<--->[NS1]<---->ns1-p2<---->ns2-p1<---->[NS2]<---->ns2-p2
+nat_uuid=$(fetch_column nb:NAT _uuid)
+
+check_uuid ovn-nbctl create NAT_Service name=ns2 direction=ingress nat=$nat_uuid
+
+ns2_uuid=$(fetch_column nb:NAT_Service _uuid name=ns2)
+
+check_uuid ovn-nbctl --id=@p1 create Service_Port name=ns2-p1 -- \
+    --id=@p2 create Service_Port name=ns2-p2 -- \
+    set NAT_Service $ns2_uuid ports="@p1 @p2"
+
+ns2_p1_uuid=$(fetch_column nb:Service_Port _uuid name=ns2-p1)
+ns2_p2_uuid=$(fetch_column nb:Service_Port _uuid name=ns2-p2)
+
+check ovn-nbctl set Service_Port $ns2_p1_uuid peer="ns1-p2" complement="ns2-p2" -- \
+    set Service_Port $ns1_p2_uuid peer="ns2-p1" -- \
+    set Service_Port $ns2_p2_uuid complement="ns2-p1"
+check ovn-nbctl --wait=sb sync
+
+dnl We added one service and two ports to the chain, so we should now have 5 SB port bindings.
+check_row_count Port_Binding 5
+
+ns2_p1_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns2-p1")
+ns2_p2_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns2-p2")
+
+dnl Let's make sure all SB peer and complement settings are corect.
+
+AT_CHECK([ovn-sbctl get Port_Binding $swp1_sb_uuid options:service_peer_port],
+[0], [ns1-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p1_sb_uuid options:service_peer_port],
+[0], [swp1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p1_sb_uuid options:service_complement_port],
+[0], [ns1-p2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p2_sb_uuid options:service_complement_port],
+[0], [ns1-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p2_sb_uuid options:service_peer_port],
+[0], [ns2-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p1_sb_uuid options:service_peer_port],
+[0], [ns1-p2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p1_sb_uuid options:service_complement_port],
+[0], [ns2-p2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p2_sb_uuid options:service_complement_port],
+[0], [ns2-p1
+])
+
+dnl The switch port should not have a complement set, and the final port in the chain should not
+dnl have a peer set.
+AT_CHECK([ovn-sbctl get Port_Binding $swp1_sb_uuid options:service_complement_port],
+[1], [ignore], [ignore])
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p2_sb_uuid options:service_peer_port],
+[1], [ignore], [ignore])
+
+dnl Now let's mess the chain up. First, let's set an incorrect complement on a port
+dnl in the chain.
+
+check ovn-nbctl set Service_Port $ns1_p2_uuid complement="INVALID_COMPLEMENT"
+check ovn-nbctl --wait=sb sync
+
+dnl The entire chain should be invalidated, resulting in swp1's Port_Binding being
+dnl the only one remaining.
+
+check_row_count Port_Binding 1
+
+dnl Now instead of a non-existent complement, let's try setting it to a port that exists,
+dnl but that doesn't result in a valid chain.
+check ovn-nbctl set Service_Port $ns1_p2_uuid complement="ns2-p1"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 1
+
+dnl Let's rebuild the chain correctly first.
+check ovn-nbctl set Service_Port $ns1_p2_uuid complement="ns1-p1"
+check ovn-nbctl --wait=sb sync
+
+dnl Make sure all of the expected Port_Bindings are present.
+check_row_count Port_Binding 5
+
+dnl Let's redo what we just did, except we'll set invalid peers instead of complements.
+check ovn-nbctl set Service_Port $ns1_p2_uuid peer="INVALID_PEER"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 1
+
+check ovn-nbctl set Service_Port $ns1_p2_uuid peer="ns1-p1"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 1
+
+check ovn-nbctl set Service_Port $ns1_p2_uuid peer="ns2-p1"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 5
+
+dnl Now let's do something really weird. Let's create a second switch port, and loop
+dnl the chain between the two switch ports.
+dnl swp1<----->ns1-p1<--->[NS1]<---->ns1-p2<---->ns2-p1<---->[NS2]<---->ns2-p2<---->swp2
+check ovn-nbctl lsp-add sw swp2 -- \
+    lsp-set-options swp2 service_peer_port="ns2-p2" -- \
+    set Service_Port $ns2_p2_uuid peer="swp2"
+check ovn-nbctl --wait=sb sync
+
+dnl Only the two switch ports should have SB port bindings
+check_row_count Port_Binding 2
+
+dnl Rebuild the chain correctly.
+check ovn-nbctl clear Service_Port $ns2_p2_uuid peer -- \
+    remove Logical_Switch_Port swp2 options service_peer_port
+
+check_row_count Port_Binding 6
+
+dnl Now let's create a second chain, using swp2 as the origin point. We'll re-use
+dnl the same services as before, but add new ports.
+dnl swp2<----->ns1-p3<--->[NS1]<---->ns1-p4<---->ns2-p3<---->[NS2]<---->ns2-p4
+check_uuid ovn-nbctl --id=@p1 create Service_Port name="ns1-p3" peer="swp2" complement="ns1-p4" -- \
+    --id=@p2 create Service_Port name="ns1-p4" complement="ns1-p3" peer="ns2-p3" -- \
+    --id=@p3 create Service_Port name="ns2-p3" peer="ns1-p4" complement="ns2-p4" -- \
+    --id=@p4 create Service_Port name="ns2-p4" complement="ns2-p3" -- \
+    add NAT_Service $ns1_uuid ports "@p1 @p2" -- \
+    add NAT_Service $ns2_uuid ports "@p3 @p4" -- \
+    lsp-set-options swp2 service_peer_port="ns1-p3"
+
+ns1_p3_uuid=$(fetch_column nb:Service_Port _uuid name=ns2-p3)
+ns1_p4_uuid=$(fetch_column nb:Service_Port _uuid name=ns2-p4)
+ns2_p3_uuid=$(fetch_column nb:Service_Port _uuid name=ns2-p3)
+ns2_p4_uuid=$(fetch_column nb:Service_Port _uuid name=ns2-p4)
+
+dnl If all went well, there should be 4 additional port bindings, for a total of 10.
+check_row_count Port_Binding 10
+
+dnl Since chains were broken and rebuilt, our old saved SB UUIDs are no longer valid.
+dnl Let's refresh them.
+ns1_p1_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns1-p1")
+ns1_p2_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns1-p2")
+ns1_p3_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns1-p3")
+ns1_p4_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns1-p4")
+ns2_p1_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns2-p1")
+ns2_p2_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns2-p2")
+ns2_p3_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns2-p3")
+ns2_p4_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="ns2-p4")
+swp2_sb_uuid=$(fetch_column Port_Binding _uuid logical_port="swp2")
+
+ovn-sbctl list Port_Binding
+
+dnl Since we have an all new chain, let's make sure that all SB Port_Binding settings
+dnl are what we expect.
+AT_CHECK([ovn-sbctl get Port_Binding $swp1_sb_uuid options:service_peer_port],
+[0], [ns1-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p1_sb_uuid options:service_peer_port],
+[0], [swp1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p1_sb_uuid options:service_complement_port],
+[0], [ns1-p2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p2_sb_uuid options:service_complement_port],
+[0], [ns1-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p2_sb_uuid options:service_peer_port],
+[0], [ns2-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p1_sb_uuid options:service_peer_port],
+[0], [ns1-p2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p1_sb_uuid options:service_complement_port],
+[0], [ns2-p2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p2_sb_uuid options:service_complement_port],
+[0], [ns2-p1
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $swp2_sb_uuid options:service_peer_port],
+[0], [ns1-p3
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p3_sb_uuid options:service_peer_port],
+[0], [swp2
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p3_sb_uuid options:service_complement_port],
+[0], [ns1-p4
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p4_sb_uuid options:service_complement_port],
+[0], [ns1-p3
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns1_p4_sb_uuid options:service_peer_port],
+[0], [ns2-p3
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p3_sb_uuid options:service_peer_port],
+[0], [ns1-p4
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p3_sb_uuid options:service_complement_port],
+[0], [ns2-p4
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p4_sb_uuid options:service_complement_port],
+[0], [ns2-p3
+])
+
+AT_CHECK([ovn-sbctl get Port_Binding $swp1_sb_uuid options:service_complement_port],
+[1], [ignore], [ignore])
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p2_sb_uuid options:service_peer_port],
+[1], [ignore], [ignore])
+AT_CHECK([ovn-sbctl get Port_Binding $swp2_sb_uuid options:service_complement_port],
+[1], [ignore], [ignore])
+AT_CHECK([ovn-sbctl get Port_Binding $ns2_p4_sb_uuid options:service_peer_port],
+[1], [ignore], [ignore])
+
+dnl Let's break the first chain but leave the second intact.
+check ovn-nbctl set Service $ns2_p1_uuid peer="ns1-p4"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 6
+
+dnl Make it valid again.
+check ovn-nbctl set Service $ns2_p1_uuid peer="ns1-p2"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 10
+
+dnl Break the second chain but leave the first intact.
+check ovn-nbctl set Service $ns2_p3_uuid peer="ns1-p2"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 6
+
+dnl Make it valid again.
+check ovn-nbctl set Service $ns2_p3_uuid peer="ns1-p4"
+check ovn-nbctl --wait=sb sync
+
+check_row_count Port_Binding 10
+
+OVN_CLEANUP_NORTHD
+AT_CLEANUP
+])

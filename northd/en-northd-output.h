@@ -28,5 +28,8 @@ northd_output_acl_id_handler(struct engine_node *node, void *data OVS_UNUSED);
 enum engine_input_handler_result
 northd_output_advertised_route_sync_handler(struct engine_node *node,
                                             void *data OVS_UNUSED);
+enum engine_input_handler_result
+northd_output_port_binding_service_handler(struct engine_node *node,
+                                           void *data OVS_UNUSED);
 
 #endif

@@ -91,3 +91,10 @@ northd_output_advertised_route_sync_handler(
 {
     return EN_HANDLED_UPDATED;
 }
+
+enum engine_input_handler_result
+northd_output_port_binding_service_handler(
+    struct engine_node *node OVS_UNUSED, void *data OVS_UNUSED)
+{
+    return EN_HANDLED_UPDATED;
+}

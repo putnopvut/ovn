@@ -1205,4 +1205,6 @@ struct ovn_port_routable_addresses get_op_addresses(
 
 void destroy_routable_addresses(struct ovn_port_routable_addresses *ra);
 
+bool port_binding_is_northd(const struct sbrec_port_binding *pb);
+
 #endif /* NORTHD_H */

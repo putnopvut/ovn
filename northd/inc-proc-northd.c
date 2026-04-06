@@ -51,6 +51,7 @@
 #include "en-datapath-logical-switch.h"
 #include "en-datapath-nat-service.h"
 #include "en-datapath-sync.h"
+#include "en-port-binding-service.h"
 #include "unixctl.h"
 #include "util.h"
 
@@ -198,6 +199,7 @@ static ENGINE_NODE(datapath_synced_logical_router, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(datapath_synced_logical_switch, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(datapath_synced_nat_service, CLEAR_TRACKED_DATA);
 static ENGINE_NODE(ic_learned_svc_monitors, SB_WRITE);
+static ENGINE_NODE(port_binding_service, CLEAR_TRACKED_DATA, SB_WRITE);
 
 void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                           struct ovsdb_idl_loop *sb)
@@ -485,6 +487,11 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
     engine_add_input(&en_sync_from_sb, &en_sb_service_monitor, NULL);
     engine_add_input(&en_sync_from_sb, &en_sb_ha_chassis_group, NULL);
 
+    engine_add_input(&en_port_binding_service, &en_northd, NULL);
+    engine_add_input(&en_port_binding_service, &en_sb_port_binding, NULL);
+    engine_add_input(&en_port_binding_service, &en_datapath_synced_nat_service,
+                     NULL);
+
     engine_add_input(&en_northd_output, &en_acl_id,
                      northd_output_acl_id_handler);
     engine_add_input(&en_northd_output, &en_sync_from_sb, NULL);
@@ -502,12 +509,8 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                      northd_output_advertised_route_sync_handler);
     engine_add_input(&en_northd_output, &en_advertised_mac_binding_sync,
                      northd_output_advertised_mac_binding_sync_handler);
-    /* XXX This is temporarily needed since there are no consumers of
-     * synced NAT services. This ensures that the synced nat engine node
-     * actually runs. Since this is temporary, we don't really care about
-     * defining a change handler.
-     */
-    engine_add_input(&en_northd_output, &en_datapath_synced_nat_service, NULL);
+    engine_add_input(&en_northd_output, &en_port_binding_service,
+                     northd_output_port_binding_service_handler);
 
     struct engine_arg engine_arg = {
         .nb_idl = nb->idl,

@@ -1829,6 +1829,9 @@ join_logical_ports(const struct sbrec_port_binding_table *sbrec_pb_table,
 
     const struct sbrec_port_binding *sb;
     SBREC_PORT_BINDING_TABLE_FOR_EACH (sb, sbrec_pb_table) {
+        if (!port_binding_is_northd(sb)) {
+            continue;
+        }
         struct ovn_port *op = ovn_port_create(ports, sb->logical_port,
                                               NULL, NULL, sb);
         ovs_list_push_back(sb_only, &op->list);
@@ -5576,6 +5579,11 @@ northd_handle_sb_port_binding_changes(
         /* "New" + "Deleted" is a no-op. */
         if (sbrec_port_binding_is_new(pb) &&
             sbrec_port_binding_is_deleted(pb)) {
+            continue;
+        }
+
+        /* Ports not managed by northd should be ignored. */
+        if (!port_binding_is_northd(pb)) {
             continue;
         }
 
@@ -21674,4 +21682,11 @@ northd_get_datapath_for_port(const struct hmap *ls_ports,
     const struct ovn_port *op = ovn_port_find(ls_ports, port_name);
 
     return op ? op->od : NULL;
+}
+
+bool
+port_binding_is_northd(const struct sbrec_port_binding *pb)
+{
+    /* northd manages port bindings of all types except "service" */
+    return strcmp(pb->type, "service");
 }
