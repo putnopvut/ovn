@@ -6725,5 +6725,31 @@ or
       </column>
     </group>
   </table>
-
+  <table name="Service_Port" title="Ports for Services">
+    <p>
+      Much like a <ref table="Logical_Switch_Port"/> or
+      <ref table="Logical_Router_Port"/>, this represents a port that attaches
+      to a service.
+    </p>
+    <column name="name">
+      The name for this port. This must be unique amongst all port types.
+    </column>
+    <column name="peer">
+      The name of the peer port. When traffic exits the service via this port,
+      the peer is the port on either the next service, <ref
+      table="Logical_Switch"/>, or <ref table="Logical_Router"/> to which the
+      traffic should go. Similarly, traffic that comes from the peer will enter
+      via this port. The service port farthest from the logical datapath will
+      not have a peer. The service port closest to the logical datapath will
+      have either a <ref table="Logical_Switch_Port"/> or a <ref
+      table="Logical_Router_Port"/> as its peer.
+    </column>
+    <column name="complement">
+      The name of the other port on the attached service. Traffic that enters
+      the service via this port will exit the service via the complement port.
+      Traffic that enters the service via the complement port will exit on
+      this port. All service ports must have complements in order to function
+      properly.
+    </column>
+  </table>
 </database>
