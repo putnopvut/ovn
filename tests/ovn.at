@@ -37669,7 +37669,7 @@ ovs-vsctl add-port br-int p1 -- \
 
 check ovn-nbctl lsp-add-router-port sw0 sw0-lr0 lr0-sw0
 
-check ovn-appctl -t ovn-controller vlog/set dbg:main
+check ovn-appctl -t ovn-controller vlog/set dbg:ct_zone
 
 wait_for_ports_up
 check ovn-nbctl --wait=hv sync
@@ -37775,7 +37775,7 @@ OVN_CONTROLLER_EXIT([hv1],[--restart])
 replace_with_uuid lr0
 replace_with_uuid sw0
 
-start_daemon ovn-controller --verbose="main:dbg"
+start_daemon ovn-controller --verbose="ct_zone:dbg"
 
 OVS_WAIT_UNTIL([test "$(grep -c 'ct zone .* replace uuid name' hv1/ovn-controller.log)" = "8"])
 
