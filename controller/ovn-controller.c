@@ -2545,16 +2545,30 @@ ct_zones_runtime_data_handler(struct engine_node *node, void *data)
             if (!strcmp(t_lport->pb->type, "patch") &&
                 !smap_get_bool(&t_lport->pb->options,
                                "enable_router_port_acl", false)) {
-                struct simap_node *ct_zone =
-                simap_find(&ct_zones_data->current,
+                struct shash_node *ct_zone_node =
+                shash_find(&ct_zones_data->ctx.current,
                             t_lport->pb->logical_port);
-                if (ct_zone) {
-                    add_pending_ct_zone_entry(
-                        &ct_zones_data->pending, CT_ZONE_OF_QUEUED,
-                        ct_zone->data, false, ct_zone->name);
+                if (ct_zone_node) {
+                    struct ct_zone *ct_zone = ct_zone_node->data;
 
-                    bitmap_set0(ct_zones_data->bitmap, ct_zone->data);
-                    simap_delete(&ct_zones_data->current, ct_zone);
+                    struct ct_zone_pending_entry *pending_entry =
+                        shash_find_data(&ct_zones_data->ctx.pending,
+                                        ct_zone_node->name);
+                    if (!pending_entry) {
+                        pending_entry = xmalloc(sizeof *pending_entry);
+                        pending_entry->state = CT_ZONE_OF_QUEUED;
+                        shash_add(&ct_zones_data->ctx.pending,
+                                  ct_zone_node->name, pending_entry);
+                    }
+                    *pending_entry = (struct ct_zone_pending_entry) {
+                        .ct_zone = *ct_zone,
+                        .state = MIN(pending_entry->state, CT_ZONE_OF_QUEUED),
+                        .add = false,
+                    };
+
+                    bitmap_set0(ct_zones_data->ctx.bitmap, ct_zone->zone);
+                    free(ct_zone);
+                    shash_delete(&ct_zones_data->ctx.current, ct_zone_node);
                     updated = true;
                 }
                 continue;

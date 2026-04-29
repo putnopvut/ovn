@@ -3217,6 +3217,7 @@ wait_row_count Chassis_Private 0 name="hv2"
 OVN_CLEANUP([hv1], [hv2
 /already has encap ip.*cannot duplicate on/d])
 AT_CLEANUP
+])
 
 OVN_FOR_EACH_NORTHD([
 AT_SETUP([ovn-controller - CT zone min/max boundaries])

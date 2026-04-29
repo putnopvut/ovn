@@ -2163,7 +2163,8 @@ binding_run(struct binding_ctx_in *b_ctx_in, struct binding_ctx_out *b_ctx_out)
             /* Check if this patch port needs CT zone allocation and add it
              * to local_lports if required. */
             if (patch_port_needs_ct_zone(pb)) {
-                update_local_lports(pb->logical_port, b_ctx_out);
+                update_local_lports(pb->logical_port, b_ctx_out,
+                                    LPORT_STATUS_BOUND);
             }
             break;
         case LP_VTEP:
@@ -3034,7 +3035,8 @@ handle_updated_port(struct binding_ctx_in *b_ctx_in,
             tracked_datapath_lport_add(pb, TRACKED_RESOURCE_UPDATED,
                 b_ctx_out->tracked_dp_bindings);
             if (patch_port_needs_ct_zone(pb)) {
-                update_local_lports(pb->logical_port, b_ctx_out);
+                update_local_lports(pb->logical_port, b_ctx_out,
+                                    LPORT_STATUS_BOUND);
             } else {
                 /* Option was removed, remove from local_lports to
                  * release CT zone */
