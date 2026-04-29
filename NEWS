@@ -1,5 +1,7 @@
 OVN v24.03.9 - xx xxx xxxx
 --------------------------
+  - Added support to define boundaries (min and max values) for selected ct
+    zones.
 
 OVN v24.03.8 - 20 Apr 2026
 --------------------------
