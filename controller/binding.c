@@ -1672,11 +1672,11 @@ consider_vif_lport_(const struct sbrec_port_binding *pb,
                 return false;
             }
 
-            add_local_datapath(b_ctx_in->sbrec_port_binding_by_datapath,
-                               b_ctx_in->sbrec_port_binding_by_name,
-                               pb->datapath, b_ctx_in->chassis_rec,
-                               b_ctx_out->local_datapaths,
-                               b_ctx_out->tracked_dp_bindings);
+            add_pb_local_datapath(b_ctx_in->sbrec_port_binding_by_datapath,
+                                  b_ctx_in->sbrec_port_binding_by_name,
+                                  pb, b_ctx_in->chassis_rec,
+                                  b_ctx_out->local_datapaths,
+                                  b_ctx_out->tracked_dp_bindings);
             update_related_lport(pb, b_ctx_out);
             update_local_lports(pb->logical_port, b_ctx_out,
                                 LPORT_STATUS_BOUND);
@@ -2006,11 +2006,11 @@ consider_nonvif_lport_(const struct sbrec_port_binding *pb,
     if (our_chassis) {
         update_local_lports(pb->logical_port, b_ctx_out, LPORT_STATUS_BOUND);
         if (!ld) {
-            add_local_datapath(b_ctx_in->sbrec_port_binding_by_datapath,
-                               b_ctx_in->sbrec_port_binding_by_name,
-                               pb->datapath, b_ctx_in->chassis_rec,
-                               b_ctx_out->local_datapaths,
-                               b_ctx_out->tracked_dp_bindings);
+            add_pb_local_datapath(b_ctx_in->sbrec_port_binding_by_datapath,
+                                  b_ctx_in->sbrec_port_binding_by_name,
+                                  pb, b_ctx_in->chassis_rec,
+                                  b_ctx_out->local_datapaths,
+                                  b_ctx_out->tracked_dp_bindings);
         } else {
             /* Add the peer datapath to the local datapaths if it's
              * not present yet.
@@ -2142,11 +2142,11 @@ consider_ha_lport(const struct sbrec_port_binding *pb,
          * If the chassis is active, consider_nonvif_lport_() takes care
          * of adding the datapath of this 'pb' to local datapaths.
          * */
-        add_local_datapath(b_ctx_in->sbrec_port_binding_by_datapath,
-                           b_ctx_in->sbrec_port_binding_by_name,
-                           pb->datapath, b_ctx_in->chassis_rec,
-                           b_ctx_out->local_datapaths,
-                           b_ctx_out->tracked_dp_bindings);
+        add_pb_local_datapath(b_ctx_in->sbrec_port_binding_by_datapath,
+                              b_ctx_in->sbrec_port_binding_by_name,
+                              pb, b_ctx_in->chassis_rec,
+                              b_ctx_out->local_datapaths,
+                              b_ctx_out->tracked_dp_bindings);
         update_related_lport(pb, b_ctx_out);
     }
 
@@ -3074,10 +3074,10 @@ consider_patch_port_for_local_datapaths(const struct sbrec_port_binding *pb,
         if (peer_ld && need_add_peer_to_local(
                 b_ctx_in->sbrec_port_binding_by_name, peer,
                 pb, b_ctx_in->chassis_rec)) {
-            add_local_datapath(
+            add_pb_local_datapath(
                 b_ctx_in->sbrec_port_binding_by_datapath,
                 b_ctx_in->sbrec_port_binding_by_name,
-                pb->datapath, b_ctx_in->chassis_rec,
+                pb, b_ctx_in->chassis_rec,
                 b_ctx_out->local_datapaths,
                 b_ctx_out->tracked_dp_bindings);
         }

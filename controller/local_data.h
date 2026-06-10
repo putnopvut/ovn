@@ -81,10 +81,10 @@ need_add_peer_to_local(
     const struct sbrec_port_binding *pb,
     const struct sbrec_port_binding *peer,
     const struct sbrec_chassis *);
-void add_local_datapath(
+void add_pb_local_datapath(
     struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
     struct ovsdb_idl_index *sbrec_port_binding_by_name,
-    const struct sbrec_datapath_binding *,
+    const struct sbrec_port_binding *,
     const struct sbrec_chassis *,
     struct hmap *local_datapaths,
     struct hmap *tracked_datapaths);
