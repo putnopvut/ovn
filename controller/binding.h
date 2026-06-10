@@ -45,7 +45,6 @@ struct if_status_mgr;
 struct binding_ctx_in {
     struct ovsdb_idl_txn *ovnsb_idl_txn;
     struct ovsdb_idl_txn *ovs_idl_txn;
-    struct ovsdb_idl_index *sbrec_datapath_binding_by_key;
     struct ovsdb_idl_index *sbrec_port_binding_by_datapath;
     struct ovsdb_idl_index *sbrec_port_binding_by_name;
     struct ovsdb_idl_index *ovsrec_port_by_qos;

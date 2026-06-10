@@ -36,7 +36,6 @@
 VLOG_DEFINE_THIS_MODULE(ldata);
 
 static struct local_datapath *add_local_datapath__(
-    struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
     struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
     struct ovsdb_idl_index *sbrec_port_binding_by_name,
     int depth, const struct sbrec_datapath_binding *,
@@ -211,16 +210,14 @@ need_add_peer_to_local(
 }
 
 void
-add_local_datapath(struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
-                   struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
+add_local_datapath(struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
                    struct ovsdb_idl_index *sbrec_port_binding_by_name,
                    const struct sbrec_datapath_binding *dp,
                    const struct sbrec_chassis *chassis,
                    struct hmap *local_datapaths,
                    struct hmap *tracked_datapaths)
 {
-    add_local_datapath__(sbrec_datapath_binding_by_key,
-                         sbrec_port_binding_by_datapath,
+    add_local_datapath__(sbrec_port_binding_by_datapath,
                          sbrec_port_binding_by_name, 0,
                          dp, chassis, local_datapaths,
                          tracked_datapaths);
@@ -231,7 +228,6 @@ add_local_datapath_peer_port(
     const struct sbrec_port_binding *pb,
     const struct sbrec_port_binding *peer,
     const struct sbrec_chassis *chassis,
-    struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
     struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
     struct ovsdb_idl_index *sbrec_port_binding_by_name,
     struct local_datapath *ld,
@@ -245,8 +241,7 @@ add_local_datapath_peer_port(
                            peer->datapath->tunnel_key);
     if (!peer_ld) {
         peer_ld =
-            add_local_datapath__(sbrec_datapath_binding_by_key,
-                                 sbrec_port_binding_by_datapath,
+            add_local_datapath__(sbrec_port_binding_by_datapath,
                                  sbrec_port_binding_by_name, 1,
                                  peer->datapath, chassis, local_datapaths,
                                  tracked_datapaths);
@@ -624,8 +619,7 @@ chassis_tunnel_find(const struct hmap *chassis_tunnels, const char *chassis_id,
 
 /* static functions. */
 static struct local_datapath *
-add_local_datapath__(struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
-                     struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
+add_local_datapath__(struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
                      struct ovsdb_idl_index *sbrec_port_binding_by_name,
                      int depth, const struct sbrec_datapath_binding *dp,
                      const struct sbrec_chassis *chassis,
@@ -665,12 +659,11 @@ add_local_datapath__(struct ovsdb_idl_index *sbrec_datapath_binding_by_key,
         if (peer && need_add_peer_to_local(sbrec_port_binding_by_name,
                                            pb, peer, chassis)) {
             struct local_datapath *peer_ld =
-                add_local_datapath__(sbrec_datapath_binding_by_key,
-                                    sbrec_port_binding_by_datapath,
-                                    sbrec_port_binding_by_name,
-                                    depth + 1, peer->datapath,
-                                    chassis, local_datapaths,
-                                    tracked_datapaths);
+                add_local_datapath__(sbrec_port_binding_by_datapath,
+                                     sbrec_port_binding_by_name,
+                                     depth + 1, peer->datapath,
+                                     chassis, local_datapaths,
+                                     tracked_datapaths);
             local_datapath_peer_port_add(peer_ld, peer, pb);
             local_datapath_peer_port_add(ld, pb, peer);
         }

@@ -1474,11 +1474,6 @@ init_binding_ctx(struct engine_node *node,
     const struct sbrec_port_binding_table *pb_table =
         EN_OVSDB_GET(engine_get_input("SB_port_binding", node));
 
-    struct ovsdb_idl_index *sbrec_datapath_binding_by_key =
-        engine_ovsdb_node_get_index(
-                engine_get_input("SB_datapath_binding", node),
-                "key");
-
     struct ovsdb_idl_index *sbrec_port_binding_by_name =
         engine_ovsdb_node_get_index(
                 engine_get_input("SB_port_binding", node),
@@ -1501,7 +1496,6 @@ init_binding_ctx(struct engine_node *node,
 
     b_ctx_in->ovnsb_idl_txn = engine_get_context()->ovnsb_idl_txn;
     b_ctx_in->ovs_idl_txn = engine_get_context()->ovs_idl_txn;
-    b_ctx_in->sbrec_datapath_binding_by_key = sbrec_datapath_binding_by_key;
     b_ctx_in->sbrec_port_binding_by_datapath = sbrec_port_binding_by_datapath;
     b_ctx_in->sbrec_port_binding_by_name = sbrec_port_binding_by_name;
     b_ctx_in->ovsrec_port_by_qos = ovsrec_port_by_qos;
