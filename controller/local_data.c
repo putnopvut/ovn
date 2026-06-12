@@ -57,6 +57,15 @@ static void track_flow_based_tunnel(
 static bool datapath_is_switch(const struct sbrec_datapath_binding *);
 static bool datapath_is_transit_switch(const struct sbrec_datapath_binding *);
 
+static bool add_service_chain_peer(
+    const struct sbrec_port_binding *pb,
+    struct ovsdb_idl_index *sbrec_port_binding_by_name,
+    struct hmap *local_datapaths);
+static bool add_service_chain_complement(
+    const struct sbrec_port_binding *pb,
+    struct ovsdb_idl_index *sbrec_port_binding_by_name,
+    struct hmap *local_datapaths);
+
 static uint64_t local_datapath_usage;
 
 /* To be used when hmap_node.hash might be wrong e.g. tunnel_key got updated */
@@ -209,6 +218,72 @@ need_add_peer_to_local(
     return false;
 }
 
+static bool
+add_service_chain_complement(const struct sbrec_port_binding *pb,
+                             struct ovsdb_idl_index *sbrec_port_binding_by_name,
+                             struct hmap *local_datapaths)
+{
+    const struct sbrec_port_binding *complement =
+        lport_get_service_complement(pb, sbrec_port_binding_by_name);
+
+    if (!complement) {
+        return false;
+    }
+
+    if (!add_service_chain_peer(complement, sbrec_port_binding_by_name,
+                                local_datapaths)) {
+        return false;
+    }
+
+    uint32_t dp_key = complement->datapath->tunnel_key;
+    struct local_datapath *ld = get_local_datapath(local_datapaths, dp_key);
+    if (ld) {
+        return true;
+    }
+    ld = local_datapath_alloc(complement->datapath);
+    hmap_insert(local_datapaths, &ld->hmap_node, dp_key);
+    ld->datapath = complement->datapath;
+
+    return true;
+}
+
+static bool
+add_service_chain_peer(const struct sbrec_port_binding *pb,
+                       struct ovsdb_idl_index *sbrec_port_binding_by_name,
+                       struct hmap *local_datapaths)
+{
+    const char *peer_name = smap_get(&pb->options, "service_peer_port");
+    if (!peer_name || !peer_name[0]) {
+        /* No peer is fine. It just means that we have reached the end of the
+         * service chain.
+         */
+        return true;
+    }
+
+    const struct sbrec_port_binding *peer =
+        lport_get_service_peer(pb, sbrec_port_binding_by_name);
+
+    if (!peer) {
+        return false;
+    }
+
+    if (!add_service_chain_complement(peer, sbrec_port_binding_by_name,
+                                      local_datapaths)) {
+        return false;
+    }
+
+    uint32_t dp_key = peer->datapath->tunnel_key;
+    struct local_datapath *ld = get_local_datapath(local_datapaths, dp_key);
+    if (ld) {
+        return true;
+    }
+    ld = local_datapath_alloc(peer->datapath);
+    hmap_insert(local_datapaths, &ld->hmap_node, dp_key);
+    ld->datapath = peer->datapath;
+
+    return true;
+}
+
 void
 add_pb_local_datapath(struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
                    struct ovsdb_idl_index *sbrec_port_binding_by_name,
@@ -221,6 +296,8 @@ add_pb_local_datapath(struct ovsdb_idl_index *sbrec_port_binding_by_datapath,
                        sbrec_port_binding_by_name, 0,
                        pb->datapath, chassis, local_datapaths,
                        tracked_datapaths);
+
+    add_service_chain_peer(pb, sbrec_port_binding_by_name, local_datapaths);
 }
 
 void

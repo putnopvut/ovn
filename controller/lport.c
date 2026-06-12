@@ -168,6 +168,56 @@ lport_get_cr_port(struct ovsdb_idl_index *sbrec_port_binding_by_name,
     return lport_lookup_by_name(sbrec_port_binding_by_name, crp_name);
 }
 
+static const struct sbrec_port_binding *
+get_service_friend__(const struct sbrec_port_binding *pb,
+                     struct ovsdb_idl_index *sbrec_port_binding_by_name,
+                     const char *friend_type)
+{
+    const char *friend_name = smap_get(&pb->options, friend_type);
+
+    if (!friend_name || !friend_name[0]) {
+        return NULL;
+    }
+
+    const struct sbrec_port_binding *friend;
+    friend = lport_lookup_by_name(sbrec_port_binding_by_name, friend_name);
+    if (!friend) {
+        return NULL;
+    }
+    if (strcmp(friend->type, "service")) {
+        return NULL;
+    }
+
+    const char *friend_friend_name = smap_get(&friend->options, friend_type);
+    if (!friend_friend_name || strcmp(friend_friend_name, pb->logical_port)) {
+        return NULL;
+    }
+    return friend;
+
+}
+
+const struct sbrec_port_binding *
+lport_get_service_peer(const struct sbrec_port_binding *pb,
+                       struct ovsdb_idl_index *sbrec_port_binding_by_name)
+{
+    return get_service_friend__(pb, sbrec_port_binding_by_name,
+                                "service_peer_port");
+}
+
+const struct sbrec_port_binding *
+lport_get_service_complement(const struct sbrec_port_binding *pb,
+                             struct ovsdb_idl_index *sbrec_port_binding_by_name)
+{
+    const struct sbrec_port_binding *complement =
+        get_service_friend__(pb, sbrec_port_binding_by_name,
+                             "service_complement_port");
+
+    if (pb->datapath != complement->datapath) {
+        return NULL;
+    }
+
+    return complement;
+}
 enum can_bind
 lport_can_bind_on_this_chassis(const struct sbrec_chassis *chassis_rec,
                                const struct sbrec_port_binding *pb)

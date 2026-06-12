@@ -81,6 +81,12 @@ const struct sbrec_port_binding *lport_get_patch_peer(
 const struct sbrec_port_binding *lport_get_l3gw_peer(
     const struct sbrec_port_binding *,
     struct ovsdb_idl_index *sbrec_port_binding_by_name);
+const struct sbrec_port_binding *lport_get_service_peer(
+    const struct sbrec_port_binding *,
+    struct ovsdb_idl_index *sbrec_port_binding_by_name);
+const struct sbrec_port_binding *lport_get_service_complement(
+    const struct sbrec_port_binding *,
+    struct ovsdb_idl_index *sbrec_port_binding_by_name);
 const struct sbrec_port_binding *lport_get_cr_port(
     struct ovsdb_idl_index *sbrec_port_binding_by_name,
     const struct sbrec_port_binding *, const char *crp_name);
