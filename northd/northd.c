@@ -4749,13 +4749,12 @@ ls_port_has_changed(const struct nbrec_logical_switch_port *new)
 }
 
 static struct ovn_port *
-ovn_port_find_in_datapath(struct ovn_datapath *od,
-                          const struct nbrec_logical_switch_port *nbsp)
+ovn_port_find_in_datapath(const struct ovn_datapath *od, const char *port_name)
 {
     struct ovn_port *op;
-    HMAP_FOR_EACH_WITH_HASH (op, dp_node, hash_string(nbsp->name, 0),
+    HMAP_FOR_EACH_WITH_HASH (op, dp_node, hash_string(port_name, 0),
                              &od->ports) {
-        if (!strcmp(op->key, nbsp->name) && op->nbsp == nbsp) {
+        if (!strcmp(op->key, port_name)) {
             return op;
         }
     }
@@ -5002,7 +5001,7 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
         for (size_t i = 0; i < changed_ls->n_ports; i++) {
             if (nbrec_logical_switch_port_row_get_seqno(
                 changed_ls->ports[i], OVSDB_IDL_CHANGE_MODIFY) > 0 ||
-                !ovn_port_find_in_datapath(od, changed_ls->ports[i])) {
+                !ovn_port_find_in_datapath(od, changed_ls->ports[i]->name)) {
                 ls_ports_changed = true;
                 break;
             }
@@ -5031,7 +5030,7 @@ ls_handle_lsp_changes(struct ovsdb_idl_txn *ovnsb_idl_txn,
         /* Compare the individual ports in the old and new Logical Switches */
         for (size_t j = 0; j < changed_ls->n_ports; ++j) {
             struct nbrec_logical_switch_port *new_nbsp = changed_ls->ports[j];
-            op = ovn_port_find_in_datapath(od, new_nbsp);
+            op = ovn_port_find_in_datapath(od, new_nbsp->name);
 
             if (!op) {
                 if (!lsp_can_be_inc_processed(new_nbsp)) {
