@@ -32,6 +32,7 @@
 #include "lib/util.h"
 #include "openvswitch/vlog.h"
 #include "en-datapath-logical-router.h"
+#include "en-route-policies.h"
 
 VLOG_DEFINE_THIS_MODULE(en_northd);
 COVERAGE_DEFINE(northd_run);
@@ -279,102 +280,6 @@ northd_nb_port_group_handler(struct engine_node *node, void *data)
 }
 
 enum engine_input_handler_result
-route_policies_northd_change_handler(struct engine_node *node,
-                                     void *data OVS_UNUSED)
-{
-    struct northd_data *northd_data = engine_get_input_data("northd", node);
-    if (!northd_has_tracked_data(&northd_data->trk_data)) {
-        return EN_UNHANDLED;
-    }
-
-    /* This node uses the below data from the en_northd engine node.
-     * See (lr_stateful_get_input_data())
-     *   1. northd_data->lr_datapaths
-     *   2. northd_data->lr_ports
-     *      This data gets updated when a logical router or logical router port
-     *      is created or deleted.
-     *      Northd engine node presently falls back to full recompute when
-     *      this happens and so does this node.
-     *      Note: When we add I-P to the created/deleted logical routers or
-     *      logical router ports, we need to revisit this handler.
-     *
-     *      This node also accesses the route policies of the logical router.
-     *      When these route policies get updated, en_northd engine recomputes
-     *      and so does this node.
-     *      Note: When we add I-P to handle route policies changes, we need
-     *      to revisit this handler.
-     */
-
-    return EN_HANDLED_UNCHANGED;
-}
-
-enum engine_input_handler_result
-route_policies_datapath_synced_logical_router_handler(struct engine_node *node,
-                                                      void *data OVS_UNUSED)
-{
-    const struct ovn_synced_logical_router_map *synced_lrs =
-        engine_get_input_data("datapath_synced_logical_router", node);
-
-    if (hmapx_is_empty(&synced_lrs->new) &&
-        hmapx_is_empty(&synced_lrs->updated) &&
-        hmapx_is_empty(&synced_lrs->deleted)) {
-        return EN_UNHANDLED;
-    }
-
-    struct hmapx_node *lr_node;
-    HMAPX_FOR_EACH (lr_node, &synced_lrs->deleted) {
-        const struct ovn_synced_logical_router *lr = lr_node->data;
-        if (lr->nb->n_policies > 0) {
-            return EN_UNHANDLED;
-        }
-    }
-
-    HMAPX_FOR_EACH (lr_node, &synced_lrs->new) {
-        const struct ovn_synced_logical_router *lr = lr_node->data;
-        if (lr->nb->n_policies > 0) {
-            return EN_UNHANDLED;
-        }
-    }
-
-    HMAPX_FOR_EACH (lr_node, &synced_lrs->updated) {
-        const struct ovn_synced_logical_router *lr = lr_node->data;
-        if (nbrec_logical_router_is_updated(
-                lr->nb, NBREC_LOGICAL_ROUTER_COL_POLICIES)) {
-            return EN_UNHANDLED;
-        }
-        for (size_t i = 0; i < lr->nb->n_policies; i++) {
-            if (nbrec_logical_router_policy_row_get_seqno(lr->nb->policies[i],
-                                    OVSDB_IDL_CHANGE_MODIFY) > 0) {
-                return EN_UNHANDLED;
-            }
-        }
-    }
-
-    return EN_HANDLED_UNCHANGED;
-}
-
-enum engine_node_state
-en_route_policies_run(struct engine_node *node, void *data)
-{
-    struct northd_data *northd_data = engine_get_input_data("northd", node);
-    struct bfd_data *bfd_data = engine_get_input_data("bfd", node);
-    struct route_policies_data *route_policies_data = data;
-
-    route_policies_destroy(data);
-    route_policies_init(data);
-
-    struct ovn_datapath *od;
-    HMAP_FOR_EACH (od, key_node, &northd_data->lr_datapaths.datapaths) {
-        build_route_policies(od, &bfd_data->bfd_connections,
-                             &route_policies_data->route_policies,
-                             &route_policies_data->bfd_active_connections,
-                             &route_policies_data->chain_ids);
-    }
-
-    return EN_UPDATED;
-}
-
-enum engine_input_handler_result
 routes_northd_change_handler(struct engine_node *node,
                              void *data OVS_UNUSED)
 {
@@ -561,6 +466,12 @@ en_routes_run(struct engine_node *node, void *data)
     return EN_UPDATED;
 }
 
+static void
+destroy_bfd_data(struct bfd_data *data)
+{
+    bfd_destroy(&data->bfd_connections);
+}
+
 enum engine_node_state
 en_bfd_run(struct engine_node *node, void *data)
 {
@@ -570,7 +481,7 @@ en_bfd_run(struct engine_node *node, void *data)
     const struct sbrec_bfd_table *sbrec_bfd_table =
         EN_OVSDB_GET(engine_get_input("SB_bfd", node));
 
-    bfd_destroy(data);
+    destroy_bfd_data(data);
     bfd_init(data);
     build_bfd_map(nbrec_bfd_table, sbrec_bfd_table,
                   &bfd_data->bfd_connections);
@@ -670,16 +581,6 @@ void
 }
 
 void
-*en_route_policies_init(struct engine_node *node OVS_UNUSED,
-                        struct engine_arg *arg OVS_UNUSED)
-{
-    struct route_policies_data *data = xzalloc(sizeof *data);
-
-    route_policies_init(data);
-    return data;
-}
-
-void
 *en_routes_init(struct engine_node *node OVS_UNUSED,
                       struct engine_arg *arg OVS_UNUSED)
 {
@@ -767,12 +668,6 @@ northd_sb_fdb_change_handler(struct engine_node *node, void *data)
 }
 
 void
-en_route_policies_cleanup(void *data)
-{
-    route_policies_destroy(data);
-}
-
-void
 en_routes_cleanup(void *data)
 {
     routes_destroy(data);
@@ -787,7 +682,7 @@ en_routes_clear_tracked_data(void *data)
 void
 en_bfd_cleanup(void *data)
 {
-    bfd_destroy(data);
+    destroy_bfd_data(data);
 }
 
 void
