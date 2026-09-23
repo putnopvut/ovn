@@ -331,8 +331,13 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
     engine_add_input(&en_bfd, &en_sb_bfd, NULL);
 
     engine_add_input(&en_route_policies, &en_bfd, NULL);
-    engine_add_input(&en_route_policies, &en_northd,
-                     route_policies_northd_change_handler);
+    engine_add_input(&en_route_policies, &en_datapath_synced_logical_router,
+                     route_policies_datapath_synced_logical_router_handler);
+    /* en_route_policy uses data from en_northd but will never make a
+     * determination about whether a recompute is needed based on that data.
+     * Instead, it uses synced logical router data to make that determination.
+     */
+    engine_add_input(&en_route_policies, &en_northd, engine_noop_handler);
 
     engine_add_input(&en_routes, &en_bfd, NULL);
     engine_add_input(&en_routes, &en_northd,
