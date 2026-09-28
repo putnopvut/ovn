@@ -19,7 +19,6 @@
 
 #include "inc-proc-eng.h"
 
-#include "lib/simap.h"
 #include "openvswitch/hmap.h"
 
 /* Represents the data associated with an instance of a northbound
@@ -38,7 +37,6 @@ struct route_policy {
 struct route_policies_data {
     struct hmap route_policies;
     struct hmap bfd_active_connections;
-    struct simap chain_ids;
 };
 
 void en_route_policies_cleanup(void *data);
