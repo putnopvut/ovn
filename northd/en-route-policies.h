@@ -19,7 +19,6 @@
 
 #include "inc-proc-eng.h"
 #include "openvswitch/hmap.h"
-#include "lib/simap.h"
 
 struct route_policy {
     struct hmap_node key_node;
@@ -33,7 +32,6 @@ struct route_policy {
 struct route_policies_data {
     struct hmap route_policies;
     struct hmap bfd_active_connections;
-    struct simap chain_ids;
 };
 
 void en_route_policies_cleanup(void *data);

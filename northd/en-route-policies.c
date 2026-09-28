@@ -287,7 +287,6 @@ route_policies_init(struct route_policies_data *data)
 {
     hmap_init(&data->route_policies);
     hmap_init(&data->bfd_active_connections);
-    simap_init(&data->chain_ids);
 }
 
 static void
@@ -300,7 +299,6 @@ route_policies_destroy(struct route_policies_data *data)
     };
     hmap_destroy(&data->route_policies);
     bfd_destroy(&data->bfd_active_connections);
-    simap_destroy(&data->chain_ids);
 }
 
 enum engine_node_state
@@ -315,10 +313,13 @@ en_route_policies_run(struct engine_node *node, void *data)
 
     struct ovn_datapath *od;
     HMAP_FOR_EACH (od, key_node, &northd_data->lr_datapaths.datapaths) {
+        struct simap chain_ids = SIMAP_INITIALIZER(&chain_ids);
+
         build_route_policies(od, &bfd_data->bfd_connections,
                              &route_policies_data->route_policies,
                              &route_policies_data->bfd_active_connections,
-                             &route_policies_data->chain_ids);
+                             &chain_ids);
+        simap_destroy(&chain_ids);
     }
 
     return EN_UPDATED;
