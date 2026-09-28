@@ -19,12 +19,18 @@
 
 #include "inc-proc-eng.h"
 #include "openvswitch/hmap.h"
+#include "vec.h"
+
+struct route_policy_nexthop {
+    const char *nexthop_addr;
+    const char *src_addr;
+    const struct ovn_port *outport;
+};
 
 struct route_policy {
     struct hmap_node key_node;
     const struct nbrec_logical_router_policy *rule;
-    size_t n_valid_nexthops;
-    char **valid_nexthops;
+    struct vector valid_nexthops; /* struct route_policy_nexthop */
     uint32_t chain_id;
     uint32_t jump_chain_id;
 };
