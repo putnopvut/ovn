@@ -255,6 +255,39 @@ test_clone(struct ovs_cmdl_context *ctx OVS_UNUSED)
 }
 
 static void
+test_steal(struct ovs_cmdl_context *ctx OVS_UNUSED)
+{
+    uint32_t elements[3] = {0, 1, 2};
+    struct vector vec = VECTOR_CAPACITY_INITIALIZER(uint32_t, 10);
+    vector_push_array(&vec, elements, ARRAY_SIZE(elements));
+
+    struct vector thief = vector_steal(&vec);
+    ovs_assert(vector_capacity(&thief) == 10);
+    ovs_assert(vector_len(&thief) == 3);
+
+    ovs_assert(vector_capacity(&vec) == 0);
+    ovs_assert(vector_len(&vec) == 0);
+    /* While it's unnecessary to destroy vec, we should
+     * ensure that destroying it is safe and does not
+     * affect the thief negatively.
+     */
+    vector_destroy(&vec);
+
+    size_t i = 0;
+    uint32_t num;
+    VECTOR_FOR_EACH (&thief, num) {
+        ovs_assert(elements[i++] == num);
+    }
+    ovs_assert(i == ARRAY_SIZE(elements));
+
+    vector_shrink_to_fit(&thief);
+    ovs_assert(vector_capacity(&thief) == 3);
+    ovs_assert(vector_len(&thief) == 3);
+
+    vector_destroy(&thief);
+}
+
+static void
 test_pointers(struct ovs_cmdl_context *ctx OVS_UNUSED)
 {
     const char *elements[3] = {"a", "b", "c"};
@@ -305,6 +338,7 @@ test_vector_main(int argc OVS_UNUSED, char *argv[] OVS_UNUSED)
         {"shrink", NULL, 0, 0, test_shrink, OVS_RO},
         {"clone", NULL, 0, 0, test_clone, OVS_RO},
         {"pointers", NULL, 0, 0, test_pointers, OVS_RO},
+        {"steal", NULL, 0, 0, test_steal, OVS_RO},
         {NULL, NULL, 0, 0, NULL, OVS_RO},
     };
     struct ovs_cmdl_context ctx;
