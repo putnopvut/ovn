@@ -195,6 +195,7 @@ build_route_policies(struct ovn_datapath *od,
     }
 
     size_t hash = uuid_hash(&od->key);
+    uint16_t ecmp_group_id = 1;
     for (int i = 0; i < od->nbr->n_policies; i++) {
         const struct nbrec_logical_router_policy *rule = od->nbr->policies[i];
 
@@ -323,12 +324,17 @@ build_route_policies(struct ovn_datapath *od,
             }
         }
 
+        uint16_t group = 0;
+        if (vector_len(&valid_nexthops) > 1) {
+            group = ecmp_group_id++;
+        }
         struct route_policy *new_rp = xmalloc(sizeof *new_rp);
         *new_rp = (struct route_policy) {
             .rule = rule,
             .valid_nexthops = vector_steal(&valid_nexthops),
             .chain_id = chain_id,
             .jump_chain_id = jump_chain_id,
+            .ecmp_group_id = group,
         };
         hmap_insert(route_policies, &new_rp->key_node, hash);
     }
