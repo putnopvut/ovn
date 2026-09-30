@@ -33,6 +33,7 @@ struct route_policy {
     struct vector valid_nexthops; /* struct route_policy_nexthop */
     uint32_t chain_id;
     uint32_t jump_chain_id;
+    uint16_t ecmp_group_id;
 };
 
 struct route_policies_data {
