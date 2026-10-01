@@ -20,6 +20,8 @@
 #include "inc-proc-eng.h"
 #include "openvswitch/hmap.h"
 #include "vec.h"
+#include "sparse-array.h"
+#include "simap.h"
 
 struct route_policy_nexthop {
     const char *nexthop_addr;
@@ -33,11 +35,20 @@ struct route_policy {
     struct vector valid_nexthops; /* struct route_policy_nexthop */
     uint32_t chain_id;
     uint32_t jump_chain_id;
-    uint16_t ecmp_group_id;
+    uint32_t ecmp_group_id;
+};
+
+struct datapath_route_policies {
+    struct simap chain_ids;
+    struct hmap route_policies;
+    struct hmap ecmp_group_ids;
+    uint32_t dp_index;
+    struct lflow_ref *lflow_ref;
 };
 
 struct route_policies_data {
-    struct hmap route_policies;
+    /* Each entry is a struct datapath_route_policies pointer */
+    struct sparse_array dp_route_policies;
     struct hmap bfd_active_connections;
 };
 
