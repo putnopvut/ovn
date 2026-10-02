@@ -21067,6 +21067,36 @@ lflow_handle_ls_stateful_changes(struct ls_stateful_tracked_data *trk_data,
     }
 }
 
+bool
+lflow_handle_route_policies_changes(struct route_policies_data *rp_data,
+                                    struct lflow_input *lflow_input,
+                                    struct lflow_table *lflows,
+                                    struct hmapx *dirty_lflow_refs)
+{
+    struct hmapx_node *hmapx_node;
+    struct datapath_route_policies *dp_rp;
+    HMAPX_FOR_EACH (hmapx_node, &rp_data->trk.deleted_policies) {
+        dp_rp = hmapx_node->data;
+        lflow_ref_unlink_lflows(dp_rp->lflow_ref, lflows);
+        hmapx_add(dirty_lflow_refs, dp_rp->lflow_ref);
+    }
+
+    HMAPX_FOR_EACH (hmapx_node, &rp_data->trk.new_policies) {
+        dp_rp = hmapx_node->data;
+        struct ovn_datapath *od =
+            sparse_array_get(&lflow_input->lr_datapaths->dps, dp_rp->dp_index);
+        if (!od) {
+            return false;
+        }
+        lflow_ref_unlink_lflows(dp_rp->lflow_ref, lflows);
+        build_ingress_policy_flows_for_lrouter(
+            od, lflows, &dp_rp->route_policies, dp_rp->lflow_ref);
+        hmapx_add(dirty_lflow_refs, dp_rp->lflow_ref);
+    }
+
+    return true;
+}
+
 static bool
 mirror_needs_update(const struct nbrec_mirror *nb_mirror,
                     const struct sbrec_mirror *sb_mirror)
