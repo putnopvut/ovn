@@ -352,7 +352,6 @@ static void
 route_policies_init(struct route_policies_data *data)
 {
     sparse_array_init(&data->dp_route_policies, 0);
-    hmap_init(&data->bfd_active_connections);
 }
 
 static struct datapath_route_policies *
@@ -365,6 +364,8 @@ datapath_route_policies_alloc(const struct ovn_datapath *od)
         .ecmp_group_ids = HMAP_INITIALIZER(&dp_rp->ecmp_group_ids),
         .dp_index = od->sdp->index,
         .lflow_ref = lflow_ref_create(),
+        .bfd_active_connections =
+            HMAP_INITIALIZER(&dp_rp->bfd_active_connections),
     };
 
     return dp_rp;
@@ -382,6 +383,7 @@ datapath_route_policies_destroy(struct datapath_route_policies *dp_rp)
     ovn_destroy_tnlids(&dp_rp->ecmp_group_ids);
     simap_destroy(&dp_rp->chain_ids);
     lflow_ref_destroy(dp_rp->lflow_ref);
+    bfd_destroy(&dp_rp->bfd_active_connections);
     free(dp_rp);
 }
 
@@ -393,7 +395,6 @@ route_policies_destroy(struct route_policies_data *data)
         datapath_route_policies_destroy(dp_rp);
     }
     sparse_array_destroy(&data->dp_route_policies);
-    bfd_destroy(&data->bfd_active_connections);
 }
 
 enum engine_node_state
@@ -413,7 +414,7 @@ en_route_policies_run(struct engine_node *node, void *data)
 
         build_route_policies(od, &bfd_data->bfd_connections,
                              &dp_rp->route_policies,
-                             &route_policies_data->bfd_active_connections,
+                             &dp_rp->bfd_active_connections,
                              &dp_rp->chain_ids,
                              &dp_rp->ecmp_group_ids);
 

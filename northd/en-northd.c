@@ -534,12 +534,29 @@ en_bfd_sync_run(struct engine_node *node, void *data)
         EN_OVSDB_GET(engine_get_input("NB_bfd", node));
     struct bfd_sync_data *bfd_sync_data = data;
 
+    /* Route policies BFD active connections are stored per datapath,
+     * so we need to collect them into one hmap for syncing.
+     */
+    struct hmap rp_bfd_active_connections =
+        HMAP_INITIALIZER(&rp_bfd_active_connections);
+    struct datapath_route_policies *dp_rp;
+    SPARSE_ARRAY_FOR_EACH (&route_policies_data->dp_route_policies, dp_rp) {
+        struct bfd_entry *bfd_e;
+        HMAP_FOR_EACH (bfd_e, hmap_node, &dp_rp->bfd_active_connections) {
+            bfd_alloc_entry(&rp_bfd_active_connections,
+                            bfd_e->logical_port, bfd_e->dst_ip,
+                            bfd_e->status);
+        }
+    }
+
     struct sset new_bfd_ports = SSET_INITIALIZER(&new_bfd_ports);
     bfd_table_sync(eng_ctx->ovnsb_idl_txn, nbrec_bfd_table,
                    &northd_data->lr_ports, &bfd_data->bfd_connections,
-                   &route_policies_data->bfd_active_connections,
+                   &rp_bfd_active_connections,
                    &routes_data->bfd_active_connections,
                    &new_bfd_ports);
+
+    bfd_destroy(&rp_bfd_active_connections);
 
     enum engine_node_state new_state =
         sset_equals(&new_bfd_ports, &bfd_sync_data->bfd_ports)

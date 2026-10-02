@@ -44,12 +44,12 @@ struct datapath_route_policies {
     struct hmap ecmp_group_ids;
     uint32_t dp_index;
     struct lflow_ref *lflow_ref;
+    struct hmap bfd_active_connections;
 };
 
 struct route_policies_data {
     /* Each entry is a struct datapath_route_policies pointer */
     struct sparse_array dp_route_policies;
-    struct hmap bfd_active_connections;
 };
 
 void en_route_policies_cleanup(void *data);
