@@ -22,6 +22,7 @@
 #include "vec.h"
 #include "sparse-array.h"
 #include "simap.h"
+#include "hmapx.h"
 
 struct route_policy_nexthop {
     const char *nexthop_addr;
@@ -50,6 +51,10 @@ struct datapath_route_policies {
 struct route_policies_data {
     /* Each entry is a struct datapath_route_policies pointer */
     struct sparse_array dp_route_policies;
+
+    /* Tracking data. The data within is struct datapath_route_policies. */
+    struct hmapx new;
+    struct hmapx deleted;
 };
 
 void en_route_policies_cleanup(void *data);
@@ -63,5 +68,6 @@ enum engine_node_state en_route_policies_run(struct engine_node *node,
                                              void *data);
 void *en_route_policies_init(struct engine_node *node OVS_UNUSED,
                              struct engine_arg *arg OVS_UNUSED);
+void en_route_policies_clear_tracked_data(void *);
 
 #endif /* EN_ROUTE_POLICIES_H */

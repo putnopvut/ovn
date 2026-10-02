@@ -352,6 +352,8 @@ static void
 route_policies_init(struct route_policies_data *data)
 {
     sparse_array_init(&data->dp_route_policies, 0);
+    hmapx_init(&data->new);
+    hmapx_init(&data->deleted);
 }
 
 static struct datapath_route_policies *
@@ -395,6 +397,8 @@ route_policies_destroy(struct route_policies_data *data)
         datapath_route_policies_destroy(dp_rp);
     }
     sparse_array_destroy(&data->dp_route_policies);
+    hmapx_destroy(&data->new);
+    hmapx_destroy(&data->deleted);
 }
 
 enum engine_node_state
@@ -476,12 +480,56 @@ route_policies_northd_change_handler(struct engine_node *node,
     return EN_HANDLED_UNCHANGED;
 }
 
+static struct datapath_route_policies *
+build_datapath_route_policies(struct ovn_datapath *od,
+                              const struct hmap *bfd_connections,
+                              struct route_policies_data *rp_data)
+{
+    struct datapath_route_policies *dp_rp = datapath_route_policies_alloc(od);
+
+    build_route_policies(od, bfd_connections,
+                         &dp_rp->route_policies,
+                         &dp_rp->bfd_active_connections,
+                         &dp_rp->chain_ids,
+                         &dp_rp->ecmp_group_ids);
+
+    if (hmap_count(&dp_rp->route_policies) == 0) {
+        datapath_route_policies_destroy(dp_rp);
+        return NULL;
+    }
+    sparse_array_add_at(&rp_data->dp_route_policies, dp_rp,
+                        od->sdp->index);
+    return dp_rp;
+}
+
+static bool
+logical_router_policies_updated(const struct nbrec_logical_router *lr)
+{
+    if (nbrec_logical_router_is_updated(lr,
+                                        NBREC_LOGICAL_ROUTER_COL_POLICIES)) {
+        return true;
+    }
+    for (size_t i = 0; i < lr->n_policies; i++) {
+        const struct nbrec_logical_router_policy *rule = lr->policies[i];
+        if (nbrec_logical_router_policy_row_get_seqno(
+                rule, OVSDB_IDL_CHANGE_MODIFY) > 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 enum engine_input_handler_result
 route_policies_datapath_synced_logical_router_handler(struct engine_node *node,
-                                                      void *data OVS_UNUSED)
+                                                      void *data)
 {
     const struct ovn_synced_logical_router_map *synced_lrs =
         engine_get_input_data("datapath_synced_logical_router", node);
+    const struct northd_data *northd_data =
+        engine_get_input_data("northd", node);
+    const struct bfd_data *bfd_data = engine_get_input_data("bfd", node);
+    struct route_policies_data *rp_data = data;
 
     if (hmapx_is_empty(&synced_lrs->new) &&
         hmapx_is_empty(&synced_lrs->updated) &&
@@ -489,34 +537,102 @@ route_policies_datapath_synced_logical_router_handler(struct engine_node *node,
         return EN_UNHANDLED;
     }
 
+    enum engine_input_handler_result result = EN_HANDLED_UNCHANGED;
     struct hmapx_node *lr_node;
     HMAPX_FOR_EACH (lr_node, &synced_lrs->deleted) {
         const struct ovn_synced_logical_router *lr = lr_node->data;
-        if (lr->nb->n_policies > 0) {
-            return EN_UNHANDLED;
+        struct datapath_route_policies *dp_rp =
+            sparse_array_remove(&rp_data->dp_route_policies, lr->sdp->index);
+        if (!dp_rp) {
+            /* This deleted router had no policies on it. Skip. */
+            continue;
         }
+        hmapx_add(&rp_data->deleted, dp_rp);
+        result = EN_HANDLED_UPDATED;
     }
 
     HMAPX_FOR_EACH (lr_node, &synced_lrs->new) {
         const struct ovn_synced_logical_router *lr = lr_node->data;
-        if (lr->nb->n_policies > 0) {
+        if (lr->nb->n_policies == 0) {
+            continue;
+        }
+        struct datapath_route_policies *dp_rp =
+            sparse_array_get(&rp_data->dp_route_policies, lr->sdp->index);
+        if (dp_rp) {
+            /* Weird. */
             return EN_UNHANDLED;
         }
+        struct ovn_datapath *od =
+            ovn_datapaths_find_by_index(&northd_data->lr_datapaths,
+                                        lr->sdp->index);
+        if (!od) {
+            return EN_UNHANDLED;
+        }
+        dp_rp = build_datapath_route_policies(od, &bfd_data->bfd_connections,
+                                              rp_data);
+        if (!dp_rp) {
+            continue;
+        }
+        hmapx_add(&rp_data->new, dp_rp);
+        result = EN_HANDLED_UPDATED;
     }
 
     HMAPX_FOR_EACH (lr_node, &synced_lrs->updated) {
         const struct ovn_synced_logical_router *lr = lr_node->data;
-        if (nbrec_logical_router_is_updated(
-                lr->nb, NBREC_LOGICAL_ROUTER_COL_POLICIES)) {
+
+        if (!logical_router_policies_updated(lr->nb)) {
+            continue;
+        }
+        struct ovn_datapath *od =
+            ovn_datapaths_find_by_index(&northd_data->lr_datapaths,
+                                        lr->sdp->index);
+        if (!od) {
             return EN_UNHANDLED;
         }
-        for (size_t i = 0; i < lr->nb->n_policies; i++) {
-            if (nbrec_logical_router_policy_row_get_seqno(lr->nb->policies[i],
-                                    OVSDB_IDL_CHANGE_MODIFY) > 0) {
-                return EN_UNHANDLED;
+        struct datapath_route_policies *dp_rp =
+            sparse_array_remove(&rp_data->dp_route_policies, lr->sdp->index);
+        if (!dp_rp) {
+            /* This updated router had no policies, but now does. Therefore
+             * the policies should be treated as new.
+             */
+            dp_rp =
+                build_datapath_route_policies(od, &bfd_data->bfd_connections,
+                                              rp_data);
+            if (!dp_rp) {
+                continue;
             }
+            hmapx_add(&rp_data->new, dp_rp);
+            result = EN_HANDLED_UPDATED;
+            continue;
         }
+
+        /* This updated router had policies and they are updated. We'll
+         * mark the existing policies as deleted and then rebuild the
+         * policies for this datapath and mark them as new.
+         */
+        hmapx_add(&rp_data->deleted, dp_rp);
+        struct datapath_route_policies *rebuilt_dp_rp =
+            build_datapath_route_policies(od, &bfd_data->bfd_connections,
+                                          rp_data);
+        if (rebuilt_dp_rp) {
+            hmapx_add(&rp_data->new, rebuilt_dp_rp);
+        }
+        result = EN_HANDLED_UPDATED;
     }
 
-    return EN_HANDLED_UNCHANGED;
+    return result;
+}
+
+void en_route_policies_clear_tracked_data(void *data)
+{
+    struct route_policies_data *rp_data = data;
+
+    hmapx_clear(&rp_data->new);
+
+    struct hmapx_node *node;
+    HMAPX_FOR_EACH_SAFE (node, &rp_data->deleted) {
+        struct datapath_route_policies *dp_rp = node->data;
+        datapath_route_policies_destroy(dp_rp);
+        hmapx_delete(&rp_data->deleted, node);
+    }
 }
