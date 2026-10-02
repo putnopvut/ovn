@@ -311,6 +311,32 @@ lflow_ic_learned_svc_mons_handler(struct engine_node *node,
     return EN_HANDLED_UPDATED;
 }
 
+enum engine_input_handler_result
+lflow_route_policies_handler(struct engine_node *node,
+                             void *data)
+{
+    struct route_policies_data *rp_data =
+        engine_get_input_data("route_policies", node);
+
+    if (hmapx_is_empty(&rp_data->new) &&
+        hmapx_is_empty(&rp_data->deleted)) {
+        return EN_UNHANDLED;
+    }
+
+    struct lflow_data *lflow_data = data;
+
+    struct lflow_input lflow_input;
+    lflow_get_input_data(node, &lflow_input);
+
+    if (!lflow_handle_route_policies_changes(
+            rp_data, &lflow_input, lflow_data->lflow_table,
+            &lflow_data->trk_data.dirty_lflow_refs)) {
+        return EN_UNHANDLED;
+    }
+
+    return EN_HANDLED_UPDATED;
+}
+
 void *en_lflow_init(struct engine_node *node OVS_UNUSED,
                      struct engine_arg *arg OVS_UNUSED)
 {
