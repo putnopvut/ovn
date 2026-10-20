@@ -1,5 +1,9 @@
 Post v26.09.0
 --------------
+   - ovn-nbctl lr-policy-del will now return non-zero and emit an error
+     message if a priority, match, or chain is provided as the input, but
+     no router policies are actually deleted. This message is suppressed
+     and ovn-nbctl will return 0 if "--if-exists" is supplied.
    - Learn ARP sender hardware address (arp.sha) and IPv6 Neighbor
      Discovery link-layer addresses (nd.tll, nd.sll) into the FDB
      table in addition to eth.src.  This allows VRRP virtual MACs to
