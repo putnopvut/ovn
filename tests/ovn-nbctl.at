@@ -3801,3 +3801,21 @@ check ovn-nbctl --if-exists lr-policy-del lr0 10
 check ovn-nbctl lr-policy-del lr0 100
 check ovn-nbctl lr-policy-del lr0 200
 ])
+
+OVN_NBCTL_TEST([route_policy_addition_zero_priority], [Router policy addition: 0-priority], [
+check ovn-nbctl lr-add lr0
+
+# We should be barred from adding a policy with priority 0.
+AT_CHECK([ovn-nbctl lr-policy-add lr0 0 "1" drop], [1], [],
+[ovn-nbctl: Priority 0 is not allowed for logical router policies
+])
+
+# Add a legitimate policy.
+check ovn-nbctl lr-policy-add lr0 100 "1" allow
+# Deleting a policy using priority 0 should succeed, essentially treating
+# priority 0 as "unspecified"
+check ovn-nbctl lr-policy-del lr0 0 "1"
+
+# Make sure that it was actually deleted.
+wait_row_count nb:Logical_Router_Policy 0
+])

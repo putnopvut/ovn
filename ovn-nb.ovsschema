@@ -1,7 +1,7 @@
 {
     "name": "OVN_Northbound",
     "version": "7.19.0",
-    "cksum": "2631744256 45474",
+    "cksum": "4103471446 45474",
     "tables": {
         "NB_Global": {
             "columns": {
@@ -644,7 +644,7 @@
         "Logical_Router_Policy": {
             "columns": {
                 "priority": {"type": {"key": {"type": "integer",
-                                              "minInteger": 0,
+                                              "minInteger": 1,
                                               "maxInteger": 32767}}},
                 "chain": {"type": {"key": "string", "min": 0, "max": 1}},
                 "match": {"type": "string"},

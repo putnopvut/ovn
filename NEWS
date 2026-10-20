@@ -1,5 +1,8 @@
 Post v26.09.0
 --------------
+   - Logical_Router_Policy priorities now have a minimum value of 1 instead of
+     0. This is to prevent a potentially ambiguity with default flows
+     installed by OVN.
    - ovn-nbctl lr-policy-del will now return non-zero and emit an error
      message if a priority, match, or chain is provided as the input, but
      no router policies are actually deleted. This message is suppressed

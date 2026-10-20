@@ -4663,6 +4663,12 @@ nbctl_lr_policy_add(struct ctl_context *ctx)
         ctx->error = error;
         return;
     }
+
+    if (priority == 0) {
+        ctl_error(ctx, "Priority 0 is not allowed for logical router "
+                  "policies");
+        return;
+    }
     const char *action = ctx->argv[4];
     struct vector nexthops = VECTOR_EMPTY_INITIALIZER(char *);
     const struct nbrec_bfd **bfd_sessions = NULL;
