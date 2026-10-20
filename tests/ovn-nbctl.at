@@ -3819,3 +3819,16 @@ check ovn-nbctl lr-policy-del lr0 0 "1"
 # Make sure that it was actually deleted.
 wait_row_count nb:Logical_Router_Policy 0
 ])
+
+OVN_NBCTL_TEST([route_policy_delete_no_chain], [Router policy deletion with no specified chain], [
+check ovn-nbctl lr-add lr0
+check ovn-nbctl --chain=foo lr-policy-add lr0 100 "1" allow
+
+# Let's make sure that when we try to delete all policies of
+# priority 100, it gets the policy we just added. We should not
+# need to specify a chain.
+check ovn-nbctl lr-policy-del lr0 100
+
+# Double check it was actually deleted.
+wait_row_count nb:Logical_Router_Policy 0
+])
