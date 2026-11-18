@@ -6075,10 +6075,11 @@ nbctl_lr_nat_del(struct ctl_context *ctx)
         return;
     }
 
-    const char *nat_type = ctx->argv[2];
-    bool is_snat = !strcmp("snat", nat_type);
-    if (strcmp(nat_type, "dnat") && strcmp(nat_type, "snat")
-            && strcmp(nat_type, "dnat_and_snat")) {
+    const char *nat_type = ctx->argc > 2 ? ctx->argv[2] : NULL;
+    bool is_snat = nat_type && !strcmp("snat", nat_type);
+    if (nat_type && strcmp(nat_type, "dnat")
+                 && strcmp(nat_type, "snat")
+                 && strcmp(nat_type, "dnat_and_snat")) {
         ctl_error(ctx, "%s: type must be one of \"dnat\", \"snat\" and "
                   "\"dnat_and_snat\".", nat_type);
         return;
@@ -6113,17 +6114,22 @@ nbctl_lr_nat_del(struct ctl_context *ctx)
     if (must_exist && !lr_nat_del_matching(lr, nat_type, nat_ip, dgw_port,
                                            match, is_snat)) {
         struct ds ds = DS_EMPTY_INITIALIZER;
-        ds_put_format(&ds, "no matching NAT with the type (%s)",
-                      nat_type);
+        ds_put_cstr(&ds, "no matching NAT with the ");
+        if (nat_type) {
+            ds_put_format(&ds, "type (%s), ", nat_type);
+        }
         if (nat_ip) {
-            ds_put_format(&ds, ", %s (%s)",
+            ds_put_format(&ds, "%s (%s), ",
                           is_snat ? "logical_ip" : "external_ip", nat_ip);
         }
         if (dgw_port) {
-            ds_put_format(&ds, ", gateway_port (%s)", dgw_port->name);
+            ds_put_format(&ds, "gateway_port (%s), ", dgw_port->name);
         }
         if (match) {
-            ds_put_format(&ds, ", match (%s)", match);
+            ds_put_format(&ds, "match (%s)", match);
+        } else {
+            ds_chomp(&ds, ' ');
+            ds_chomp(&ds, ',');
         }
 
         ctx->error = xstrdup(ds_cstr_ro(&ds));

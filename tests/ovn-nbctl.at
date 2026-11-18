@@ -3804,3 +3804,38 @@ check ovn-nbctl lr-policy-del lr0 100
 # Double check it was actually deleted.
 wait_row_count nb:Logical_Router_Policy 0
 ])
+
+OVN_NBCTL_TEST([nat_delete_match_no_type], [Delete NAT with match but no type], [
+check ovn-nbctl lr-add lr0
+check ovn-nbctl --match="ip4" lr-nat-add lr0 snat 10.0.0.1 192.168.0.1
+check ovn-nbctl --match="ip4" lr-nat-add lr0 dnat 10.0.0.1 192.168.0.1
+check ovn-nbctl --match="ip6" lr-nat-add lr0 snat fd01::1 fd11::1
+check ovn-nbctl --match="ip6" lr-nat-add lr0 dnat fd01::1 fd11::1
+
+check_row_count nb:NAT 4
+
+# This should delete both NATs with this match, even though the NATs are
+# separate types.
+check ovn-nbctl --match="ip4" lr-nat-del lr0
+
+check_row_count nb:NAT 2
+
+# Trying again should produce an error
+AT_CHECK([ovn-nbctl --match="ip4" lr-nat-del lr0], [1], [], [dnl
+ovn-nbctl: no matching NAT with the match (ip4)
+])
+
+check_row_count nb:NAT 2
+
+# Specifying the match and the type should only delete the SNAT and leave the DNAT
+check ovn-nbctl --match="ip6" lr-nat-del lr0 snat
+
+check_row_count nb:NAT 1
+
+# Trying again should produce an error
+AT_CHECK([ovn-nbctl --match="ip6" lr-nat-del lr0 snat], [1], [], [dnl
+ovn-nbctl: no matching NAT with the type (snat), match (ip6)
+])
+
+check_row_count nb:NAT 1
+])
