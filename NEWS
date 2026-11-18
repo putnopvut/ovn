@@ -1,5 +1,12 @@
 Post v26.09.0
 --------------
+   - ovn-nbctl lr-nat-del will now return non-zero and emit an error
+     whenever valid inputs are presented but no NATs are deleted. If
+     "--if-exists" is specified, then no error is returned and no error
+     message is emitted. The "--if-exists" option formerly applied only when
+     a type, IP, and gateway port were provided. Now "--if-exists" needs to be
+     specified when fewer arguments are provided in order to prevent the error
+     from being emitted.
    - ovn-nbctl lr-policy-del, when not passed a --chain value, can now delete
      matching policies with any chain value.
    - ovn-nbctl lr-policy-del will now return non-zero and emit an error

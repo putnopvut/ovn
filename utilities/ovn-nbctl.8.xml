@@ -1562,9 +1562,9 @@
         </p>
 
         <p>
-          It is an error if both <var>ip</var> and <var>gateway_port</var> are
-          specified and there is no matching NAT entry, unless
-          <code>--if-exists</code> is specified.
+          Assuming all inputs are valid, then <code>lr-nat-del</code> will
+          return an error if no NATs were deleted. If <code>--if-exists</code>
+          is specified, then no error is returned.
         </p>
       </dd>
 

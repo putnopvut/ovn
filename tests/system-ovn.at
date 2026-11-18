@@ -13172,7 +13172,8 @@ NETNS_DAEMONIZE([vm2], [ncat -l -k 192.168.200.20 4242], [server2.pid])
 NETNS_DAEMONIZE([vm3], [ncat -l -k 192.168.200.30 4242], [server3.pid])
 
 check_snat() {
-    check ovn-nbctl lr-nat-del lr
+    # Use --if-exists since lr won't always have NATs present when we call this.
+    check ovn-nbctl --if-exists lr-nat-del lr
     check ovn-nbctl lr-nat-add lr snat 192.168.100.1 192.168.200.0/24
     check ovn-nbctl --match="tcp && tcp.src == 2001" lr-nat-add lr snat 192.168.100.11 192.168.200.0/24
     check ovn-nbctl --match="tcp && tcp.src == 2002" lr-nat-add lr snat 192.168.100.12 192.168.200.0/24
@@ -13193,7 +13194,8 @@ tcp,orig=(src=192.168.200.10,dst=192.168.100.10,sport=<cleared>,dport=<cleared>)
 }
 
 check_dnat() {
-    check ovn-nbctl lr-nat-del lr
+    # Use --if-exists since lr won't always have NATs present when we call this.
+    check ovn-nbctl --if-exists lr-nat-del lr
     check ovn-nbctl lr-nat-add lr dnat 192.168.100.100 192.168.200.10
     check ovn-nbctl --match="tcp && tcp.src == 2001" lr-nat-add lr dnat 192.168.100.100 192.168.200.20
     check ovn-nbctl --match="tcp && tcp.src == 2002" lr-nat-add lr dnat 192.168.100.100 192.168.200.30
@@ -13298,7 +13300,8 @@ NETNS_DAEMONIZE([vm2], [ncat -lk 2000::20 4242 > /dev/null], [server2.pid])
 NETNS_DAEMONIZE([vm3], [ncat -lk 2000::30 4242 > /dev/null], [server3.pid])
 
 check_snat() {
-    check ovn-nbctl lr-nat-del lr
+    # Use --if-exists since lr won't always have NATs present when we call this.
+    check ovn-nbctl --if-exists lr-nat-del lr
     check ovn-nbctl lr-nat-add lr snat 1000::1 2000::/64
     check ovn-nbctl --match="tcp && tcp.src == 2001" lr-nat-add lr snat 1000::11 2000::/64
     check ovn-nbctl --match="tcp && tcp.src == 2002" lr-nat-add lr snat 1000::12 2000::/64
@@ -13319,7 +13322,8 @@ tcp,orig=(src=2000::10,dst=1000::10,sport=<cleared>,dport=<cleared>),reply=(src=
 }
 
 check_dnat() {
-    check ovn-nbctl lr-nat-del lr
+    # Use --if-exists since lr won't always have NATs present when we call this.
+    check ovn-nbctl --if-exists lr-nat-del lr
     check ovn-nbctl lr-nat-add lr dnat 1000::100 2000::10
     check ovn-nbctl --match="tcp && tcp.src == 2001" lr-nat-add lr dnat 1000::100 2000::20
     check ovn-nbctl --match="tcp && tcp.src == 2002" lr-nat-add lr dnat 1000::100 2000::30
@@ -22234,7 +22238,6 @@ ADD_VETH(ext-foo, ext-foo, br-ext, "172.16.1.100/24", "00:10:10:01:02:13", \
 # Create distributed nat and set gw chassis to non-exisrting
 # one - to check distributed NAT on non gw-chassis.
 check ovn-nbctl lrp-set-gateway-chassis rp-public hv2
-check ovn-nbctl lr-nat-del lr1
 check ovn-nbctl --wait=hv lr-nat-add lr1 \
     dnat_and_snat 172.16.0.1 192.168.1.2 sw01-x 00:00:04:00:00:01
 

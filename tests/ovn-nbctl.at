@@ -868,7 +868,9 @@ AT_CHECK([ovn-nbctl --stateless lr-nat-add lr0 dnat_and_snat 40.0.0.3 192.168.1.
 AT_CHECK([ovn-nbctl --stateless --may-exist lr-nat-add lr0 dnat_and_snat 40.0.0.3 192.168.1.7])
 
 dnl Deletes the NATs
-AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat_and_snat 30.0.0.3])
+AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat_and_snat 30.0.0.3], [1], [], [dnl
+ovn-nbctl: no matching NAT with the type (dnat_and_snat), external_ip (30.0.0.3)
+])
 
 AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat_and_snat 30.0.0.1])
 AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat_and_snat fd01::1])
@@ -973,10 +975,13 @@ snat                                                         40.0.0.3           
 
 AT_CHECK([ovn-nbctl lr-nat-del lr0])
 AT_CHECK([ovn-nbctl lr-nat-list lr0], [0], [])
-AT_CHECK([ovn-nbctl lr-nat-del lr0])
-AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat])
+AT_CHECK([ovn-nbctl lr-nat-del lr0], [1], [], [dnl
+ovn-nbctl: Logical router lr0 has no NATs
+])
 
-AT_CHECK([ovn-nbctl lr-nat-del lr0])
+AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat], [1], [], [dnl
+ovn-nbctl: no matching NAT with the type (dnat)
+])
 
 check_uuid ovn-nbctl create Address_Set name=allowed_range addresses=\"1.1.1.1\"
 check_uuid ovn-nbctl create Address_Set name=disallowed_range addresses=\"2.2.2.2\"
@@ -1077,7 +1082,9 @@ AT_CHECK([ovn-nbctl lr-nat-list lr0], [0], [dnl
 TYPE             GATEWAY_PORT          MATCH                 EXTERNAL_IP        EXTERNAL_PORT    LOGICAL_IP          EXTERNAL_MAC         LOGICAL_PORT
 snat                                                         172.64.1.10                         20.0.0.10
 ])
-AT_CHECK([ovn-nbctl lr-nat-del lr0 snat lrp01])
+AT_CHECK([ovn-nbctl lr-nat-del lr0 snat lrp01], [1], [], [dnl
+ovn-nbctl: no matching NAT with the type (snat), gateway_port (lrp01)
+])
 AT_CHECK([ovn-nbctl lr-nat-list lr0], [0], [dnl
 TYPE             GATEWAY_PORT          MATCH                 EXTERNAL_IP        EXTERNAL_PORT    LOGICAL_IP          EXTERNAL_MAC         LOGICAL_PORT
 snat                                                         172.64.1.10                         20.0.0.10
@@ -1087,12 +1094,12 @@ AT_CHECK([ovn-nbctl lr-nat-del lr0 snat 20.0.0 lrp01], [1], [],
 [ovn-nbctl: 20.0.0: Invalid IP address or CIDR
 ])
 AT_CHECK([ovn-nbctl lr-nat-del lr0 snat 20.0.0.10 lrp01], [1], [],
-[ovn-nbctl: no matching NAT with the type (snat), logical_ip (20.0.0.10) and gateway_port (lrp01)
+[ovn-nbctl: no matching NAT with the type (snat), logical_ip (20.0.0.10), gateway_port (lrp01)
 ])
 AT_CHECK([ovn-nbctl --if-exists lr-nat-del lr0 snat 20.0.0.10 lrp01])
 AT_CHECK([ovn-nbctl lr-nat-del lr0 snat])
 
-AT_CHECK([ovn-nbctl lr-nat-del lr0])
+AT_CHECK([ovn-nbctl --if-exists lr-nat-del lr0])
 AT_CHECK([ovn-nbctl lrp-del-gateway-chassis lrp00 chassis1])
 AT_CHECK([ovn-nbctl lrp-del-gateway-chassis lrp01 chassis2])
 

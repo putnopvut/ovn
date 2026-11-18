@@ -6066,13 +6066,17 @@ nbctl_lr_nat_del(struct ctl_context *ctx)
     if (ctx->argc == 2 && !match) {
         /* If type, external_ip, logical_ip and match are not specified,
          * delete all NATs. */
+        if (!lr->n_nat && must_exist) {
+            ctl_error(ctx, "Logical router %s has no NATs", lr->name);
+            return;
+        }
         nbrec_logical_router_verify_nat(lr);
         nbrec_logical_router_set_nat(lr, NULL, 0);
         return;
     }
 
     const char *nat_type = ctx->argv[2];
-    int is_snat = !strcmp("snat", nat_type);
+    bool is_snat = !strcmp("snat", nat_type);
     if (strcmp(nat_type, "dnat") && strcmp(nat_type, "snat")
             && strcmp(nat_type, "dnat_and_snat")) {
         ctl_error(ctx, "%s: type must be one of \"dnat\", \"snat\" and "
@@ -6080,59 +6084,52 @@ nbctl_lr_nat_del(struct ctl_context *ctx)
         return;
     }
 
-    if (ctx->argc == 3) {
-        /*Deletes all NATs with the specified type. */
-        lr_nat_del_matching(lr, nat_type, NULL, NULL, match, is_snat);
-        return;
-    }
-
-    char *nat_ip = normalize_prefix_str(ctx->argv[3]);
+    char *nat_ip = NULL;
     const struct nbrec_logical_router_port *dgw_port = NULL;
-
-    if (ctx->argc == 4) {
-        if (!nat_ip) {
-            /* GATEWAY_PORT is assumed to be passed. */
+    if (ctx->argc > 3) {
+        nat_ip = normalize_prefix_str(ctx->argv[3]);
+        if (!nat_ip && ctx->argc == 4) {
             error = lrp_by_name_or_uuid(ctx, ctx->argv[3], true, &dgw_port);
             if (error) {
                 ctx->error = error;
                 return;
             }
         }
-
-        lr_nat_del_matching(lr, nat_type, nat_ip, dgw_port, match, is_snat);
-        goto cleanup;
     }
 
-    if (!nat_ip) {
-        ctl_error(ctx, "%s: Invalid IP address or CIDR", ctx->argv[3]);
-        return;
+    if (ctx->argc > 4) {
+        if (!nat_ip) {
+            ctl_error(ctx, "%s: Invalid IP address or CIDR", ctx->argv[3]);
+            return;
+        }
+        error = lrp_by_name_or_uuid(ctx, ctx->argv[4], true, &dgw_port);
+        if (error) {
+            ctx->error = error;
+            free(nat_ip);
+            return;
+        }
     }
 
-    error = lrp_by_name_or_uuid(ctx, ctx->argv[4], true, &dgw_port);
-    if (error) {
-        ctx->error = error;
-        goto cleanup;
-    }
-
-    size_t n_deleted = lr_nat_del_matching(lr, nat_type, nat_ip, dgw_port,
-                                           match, is_snat);
-    if (must_exist && !n_deleted) {
+    if (must_exist && !lr_nat_del_matching(lr, nat_type, nat_ip, dgw_port,
+                                           match, is_snat)) {
         struct ds ds = DS_EMPTY_INITIALIZER;
-        ds_put_format(&ds, "no matching NAT with the type (%s), %s (%s)",
-                      nat_type, is_snat ? "logical_ip" : "external_ip",
-                      nat_ip);
+        ds_put_format(&ds, "no matching NAT with the type (%s)",
+                      nat_type);
+        if (nat_ip) {
+            ds_put_format(&ds, ", %s (%s)",
+                          is_snat ? "logical_ip" : "external_ip", nat_ip);
+        }
+        if (dgw_port) {
+            ds_put_format(&ds, ", gateway_port (%s)", dgw_port->name);
+        }
         if (match) {
-            ds_put_format(&ds, ", gateway_port (%s) and match (%s)",
-                          ctx->argv[4], match);
-        } else {
-            ds_put_format(&ds, " and gateway_port (%s)", ctx->argv[4]);
+            ds_put_format(&ds, ", match (%s)", match);
         }
 
         ctx->error = xstrdup(ds_cstr_ro(&ds));
         ds_destroy(&ds);
     }
 
-cleanup:
     free(nat_ip);
 }
 
