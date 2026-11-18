@@ -6015,20 +6015,10 @@ lr_nat_del_matching(const struct nbrec_logical_router *lr, const char *type,
 
     for (size_t i = 0; i < lr->n_nat; i++) {
         struct nbrec_nat *nat = lr->nat[i];
-        char *old_ip = normalize_prefix_str(is_snat
-                                            ? nat->logical_ip
-                                            : nat->external_ip);
-        if (!old_ip) {
-            continue;
-        }
 
         bool delete = true;
 
         if (type && strcmp(type, nat->type)) {
-            delete = false;
-        }
-
-        if (ip && strcmp(ip, old_ip)) {
             delete = false;
         }
 
@@ -6040,12 +6030,25 @@ lr_nat_del_matching(const struct nbrec_logical_router *lr, const char *type,
             delete = false;
         }
 
+        if (ip) {
+            char *old_ip = normalize_prefix_str(is_snat
+                                                ? nat->logical_ip
+                                                : nat->external_ip);
+            if (!old_ip) {
+                continue;
+            }
+
+            if (strcmp(ip, old_ip)) {
+                delete = false;
+            }
+
+            free(old_ip);
+        }
+
         if (delete) {
             nbrec_logical_router_update_nat_delvalue(lr, nat);
             n_deleted++;
         }
-
-        free(old_ip);
     }
 
     return n_deleted;

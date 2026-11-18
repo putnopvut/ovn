@@ -1,5 +1,9 @@
 Post v26.09.0
 --------------
+   - ovn-nbctl lr-nat-del can now delete NAT records that have malformed IP
+     addresses set on them. Previously, NAT records with malformed IP
+     addresses were always ignored, even if other fields matched the
+     arguments passed to lr-nat-del.
    - ovn-nbctl lr-nat-del will now return non-zero and emit an error
      whenever valid inputs are presented but no NATs are deleted. If
      "--if-exists" is specified, then no error is returned and no error

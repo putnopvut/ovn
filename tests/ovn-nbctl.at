@@ -3839,3 +3839,75 @@ ovn-nbctl: no matching NAT with the type (snat), match (ip6)
 
 check_row_count nb:NAT 1
 ])
+
+OVN_NBCTL_TEST([nat_del_invalid_ip], [Delete NAT with invalid IPs], [
+check ovn-nbctl lr-add lr0
+
+add_nats() {
+    # UUIDS were generated using the `uuidgen` utility. There is no significance
+    # to their values.
+    snat_options=$1
+    dnat_options=$2
+    dnat_uuid=4503b135-e8f5-47d8-80b9-918aa275a975
+    snat_uuid=312e4205-2629-4c6c-a29b-a7041f80918b
+    check_uuid ovn-nbctl --id=$dnat_uuid create NAT type=dnat external_ip=invalid logical_ip="10.0.0.1" $dnat_options -- \
+         add Logical_Router lr0 nat $dnat_uuid
+    check_uuid ovn-nbctl --id=$snat_uuid create NAT type=snat external_ip="10.0.0.1" logical_ip=invalid $snat_options -- \
+         add Logical_Router lr0 nat $snat_uuid
+    wait_row_count nb:NAT 2
+}
+
+add_nats
+
+# Trying to delete all NATs should work properly, even though they have
+# invalid IP addresses set.
+check ovn-nbctl lr-nat-del lr0
+wait_row_ocunt nb:NAT 0
+
+add_nats
+
+# Trying to delete the NATs using only the type should work properly, even
+# though they have invalid IP addresses set.
+check ovn-nbctl lr-nat-del lr0 snat
+wait_row_count nb:NAT 1
+check ovn-nbctl lr-nat-del lr0 dnat
+wait_row_count nb:NAT 0
+
+add_nats "match=ip4" "match=ip4"
+
+# Trying to delete the NATS using only the match would work properly, even
+# though they have invalid IP addresses set.
+check ovn-nbctl --match="ip4" lr-nat-del lr0 snat
+wait_row_count nb:NAT 1
+check ovn-nbctl --match="ip4" lr-nat-del lr0 dnat
+wait_row_count nb:NAT 0
+
+add_nats
+
+# Now let's try to delete by using IP address. Since the IPs are invalid, the
+# deletions should fail.
+
+# First try using the literal string used for the SNAT logical_ip and DNAT
+# external_ip. These will fail because of the invalid input to lr-nat-del.
+# The error message assumes that "invalid" is a logical router port name,
+# hence why the error message says "port name not found".
+AT_CHECK([ovn-nbctl lr-nat-del lr0 snat invalid], [1], [], [dnl
+ovn-nbctl: invalid: port name not found
+])
+wait_row_count nb:NAT 2
+AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat invalid], [1], [], [dnl
+ovn-nbctl: invalid: port name not found
+])
+wait_row_count nb:NAT 2
+
+# Now try with the wrong IP address. Use the logical_ip of the DNAT rule and
+# the external_ip of the SNAT rule.
+AT_CHECK([ovn-nbctl lr-nat-del lr0 snat 10.0.0.1], [1], [], [dnl
+ovn-nbctl: no matching NAT with the type (snat), logical_ip (10.0.0.1)
+])
+wait_row_count nb:NAT 2
+AT_CHECK([ovn-nbctl lr-nat-del lr0 dnat 10.0.0.1], [1], [], [dnl
+ovn-nbctl: no matching NAT with the type (dnat), external_ip (10.0.0.1)
+])
+wait_row_count nb:NAT 2
+])
