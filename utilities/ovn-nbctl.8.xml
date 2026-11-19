@@ -1541,7 +1541,7 @@
         </p>
       </dd>
 
-      <dt>[<code>--if-exists</code>] <code>lr-nat-del</code> <var>router</var> [<var>type</var> [<var>ip</var>] [<var>gateway_port</var>]]</dt>
+      <dt>[<code>--if-exists</code>] [<code>--match</code>=<var>MATCH</var>] <code>lr-nat-del</code> <var>router</var> [<var>type</var> [<var>ip</var>] [<var>gateway_port</var>]]</dt>
       <dd>
         <p>
           Deletes NATs from <var>router</var>.  If only <var>router</var>
@@ -1559,6 +1559,11 @@
           <code>snat</code>, the <var>ip</var> should be logical_ip. When
           <var>type</var> is <code>dnat</code> or <code>dnat_and_snat</code>,
           the <var>ip</var> should be external_ip.
+        </p>
+
+        <p>
+          If a <code>--match</code> option is provided, then only NATs whose
+          match column matches <var>MATCH</var> will be deleted.
         </p>
 
         <p>
