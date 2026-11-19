@@ -1,5 +1,11 @@
 Post v26.09.0
 --------------
+   - The NAT table in the northbound database now contains a "name" column.
+     This is an optional column that can be set in order to assist with
+     identifying NATs more easily. The `ovn-nbctl lr-nat-add` command can take
+     an optional "--name" argument to set this name. The name is listed in
+     when running `ovn-nbctl lr-nat-list`, and the name can be used as a
+     key to delete a specific NAT when running `ovn-nbctl lr-nat-del`.
    - ovn-nbctl lr-nat-del can now delete NAT records that have malformed IP
      addresses set on them. Previously, NAT records with malformed IP
      addresses were always ignored, even if other fields matched the

@@ -1439,7 +1439,7 @@
     <h2>NAT Commands</h2>
 
     <dl>
-      <dt>[<code>--may-exist</code>] [<code>--stateless</code>] [<code>--gateway-port</code>=<var>GATEWAY_PORT</var>] [--portrange] [<code>--match</code>=<var>MATCH</var>] [<code>--priority</code>=<var>PRIORITY</var>] <code>lr-nat-add</code> <var>router</var> <var>type</var> <var>external_ip</var> <var>logical_ip</var> [<var>logical_port</var> <var>external_mac</var>] [<var>external_port_range</var>]</dt>
+        <dt>[<code>--may-exist</code>] [<code>--stateless</code>] [<code>--gateway-port</code>=<var>GATEWAY_PORT</var>] [--portrange] [<code>--match</code>=<var>MATCH</var>] [<code>--priority</code>=<var>PRIORITY</var>] [<code>--name</code>=<var>NAME</var>] <code>lr-nat-add</code> <var>router</var> <var>type</var> <var>external_ip</var> <var>logical_ip</var> [<var>logical_port</var> <var>external_mac</var>] [<var>external_port_range</var>]</dt>
       <dd>
         <p>
           Adds the specified NAT to <var>router</var>.
@@ -1501,6 +1501,12 @@
         </p>
 
         <p>
+          The <code>--name</code> option allows to specify an optional name
+          for the NAT. There is no database constraint enforcing the name of
+          a NAT to be unique.
+        </p>
+
+        <p>
           When <var>type</var> is <code>dnat</code>, the externally
           visible IP address <var>external_ip</var> is DNATted to the
           IP address <var>logical_ip</var> in the logical space.
@@ -1541,7 +1547,7 @@
         </p>
       </dd>
 
-      <dt>[<code>--if-exists</code>] [<code>--match</code>=<var>MATCH</var>] <code>lr-nat-del</code> <var>router</var> [<var>type</var> [<var>ip</var>] [<var>gateway_port</var>]]</dt>
+      <dt>[<code>--if-exists</code>] [<code>--match</code>=<var>MATCH</var>] [<code>--name</code>=<var>NAME</var>] <code>lr-nat-del</code> <var>router</var> [<var>type</var> [<var>ip</var>] [<var>gateway_port</var>]]</dt>
       <dd>
         <p>
           Deletes NATs from <var>router</var>.  If only <var>router</var>
@@ -1564,6 +1570,11 @@
         <p>
           If a <code>--match</code> option is provided, then only NATs whose
           match column matches <var>MATCH</var> will be deleted.
+        </p>
+
+        <p>
+          If a <code>--name</code> option is provided, then only NATs whose
+          name column matches <var>NAME</var> will be deleted.
         </p>
 
         <p>

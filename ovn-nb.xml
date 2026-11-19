@@ -5780,6 +5780,13 @@ or
       account only if the <code>match</code> is defined.
     </column>
 
+    <column name="name">
+      An optional name for identifying this NAT. Note that unlike many names
+      in the database, there is no constraint that requires NAT names to be
+      unique. It is up to the database user to ensure that, if desired, there
+      is no name collision between NATs.
+    </column>
+
     <column name="options" key="stateless">
       Indicates if a dnat_and_snat rule should lead to connection
       tracking state or not.
