@@ -2517,7 +2517,7 @@ AT_CHECK([ovn-nbctl lr-policy-add lr0 100 "ip4.src == 2.1.1.0/24" jump], [1], []
 ])
 
 AT_CHECK([ovn-nbctl --output-port=lrp0 lr-policy-add lr0 101 "ip4.src == 3.1.1.0/24" drop], [1], [],
-  [ovn-nbctl: Specifying output-port is only allowed for reroute policies.
+  [ovn-nbctl: Specifying output-port is only allowed for reroute and redirect policies.
 ])
 
 AT_CHECK([ovn-nbctl --output-port=lrp0 lr-policy-add lr0 101 "ip4.src == 3.1.1.0/24" reroute 192.168.0.10,192.168.0.11], [1], [],
@@ -2540,7 +2540,7 @@ AT_CHECK([ovn-nbctl --may-exist lr-policy-add lr0 100 "ip4.src == 1.1.1.0/24" dr
 
 dnl Add duplicated policy
 AT_CHECK([ovn-nbctl lr-policy-add lr0 103 "ip4.src == 1.1.1.0/24" deny], [1], [],
-  [ovn-nbctl: deny: action must be one of "allow", "drop", "reroute", "jump"
+  [ovn-nbctl: deny: action must be one of "allow", "drop", "reroute", "jump", "redirect"
 ])
 
 dnl Delete by priority and match string
@@ -3796,4 +3796,26 @@ check ovn-nbctl lr-policy-del lr0 100
 
 # Double check it was actually deleted.
 wait_row_count nb:Logical_Router_Policy 0
+])
+
+OVN_NBCTL_TEST([route_policy_redirect], [Router policy with redirect action], [
+check ovn-nbctl lr-add lr
+check ovn-nbctl lrp-add lr lrp 00:00:00:00:00:01 192.168.0.1/24 fd01::1/64
+
+# Base test. Add a redirect router policy and specify a valid port.
+check ovn-nbctl --output-port=lrp lr-policy-add lr 100 "ip4" redirect
+
+# Ensure the policy was inserted
+check_row_count nb:Logical_Router_Policy 1
+
+# Try adding a redirect policy without a port.
+AT_CHECK([ovn-nbctl lr-policy-add lr 101 "ip4" redirect], [1], [], [dnl
+ovn-nbctl: An output-port must be specified for redirect policies
+])
+check_row_count nb:Logical_Router_Policy 1
+
+# Try adding a redirect policy with a non-existent port.
+AT_CHECK([ovn-nbctl --output-port=lrp0 lr-policy-add lr 101 "ip4" redirect], [1], [], [dnl
+ovn-nbctl: unknown output-port: lrp0
+])
 ])

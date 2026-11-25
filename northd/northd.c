@@ -4759,7 +4759,7 @@ ls_port_has_changed(const struct nbrec_logical_switch_port *new)
                                 OVSDB_IDL_CHANGE_MODIFY) > 0);
 }
 
-static struct ovn_port *
+struct ovn_port *
 ovn_port_find_in_datapath(const struct ovn_datapath *od, const char *name)
 {
     struct ovn_port *op;
@@ -12368,6 +12368,13 @@ build_routing_policy_flow(struct lflow_table *lflows, struct ovn_datapath *od,
     struct ds match = DS_EMPTY_INITIALIZER;
     struct ds actions = DS_EMPTY_INITIALIZER;
 
+    if (rp->chain_id == -1) {
+        ds_put_format(&match, "%s", rule->match);
+    } else {
+        ds_put_format(&match, REG_POLICY_CHAIN_ID" == %d && (%s)",
+                      rp->chain_id, rule->match);
+    }
+
     if (!strcmp(rule->action, "reroute")) {
         ovs_assert(vector_len(&rp->valid_nexthops) <= 1);
 
@@ -12420,13 +12427,55 @@ build_routing_policy_flow(struct lflow_table *lflows, struct ovn_datapath *od,
             ds_put_format(&actions, "pkt.mark = %u; ", pkt_mark);
         }
         ds_put_cstr(&actions, REG_ECMP_GROUP_ID" = 0; next;");
-    }
+    } else if (!strcmp(rule->action, "redirect")) {
+        ovs_assert(rp->redirect_port_key);
+        struct ovn_port *out_port;
+        out_port = ovn_port_find_in_datapath(od, rp->redirect_port_key);
+        if (!out_port) {
+            return;
+        }
 
-    if (rp->chain_id == -1) {
-        ds_put_format(&match, "%s", rule->match);
-    } else {
-        ds_put_format(&match, REG_POLICY_CHAIN_ID" == %d && (%s)",
-                      rp->chain_id, rule->match);
+        size_t match_len = match.length;
+
+        ds_put_format(&actions, "eth.src = %s; "
+                                "outport = %s; "
+                                "flags.loopback = 1; ",
+                      out_port->lrp_networks.ea_s, out_port->json_key);
+        size_t actions_len = actions.length;
+
+        if (out_port->lrp_networks.n_ipv4_addrs) {
+            /* Use the first IPv4 address available. We assume this is capable
+             * of reaching the nexthop.
+             */
+            ds_put_cstr(&match, " && "REGBIT_NEXTHOP_IS_IPV4" == 1");
+            ds_put_format(&actions, REG_SRC_IPV4 " = %s; next;",
+                          out_port->lrp_networks.ipv4_addrs[0].addr_s);
+            ovn_lflow_add(lflows, od, S_ROUTER_IN_POLICY, rule->priority,
+                          ds_cstr(&match), ds_cstr(&actions),
+                          lflow_ref, WITH_HINT(stage_hint));
+        }
+        ds_truncate(&match, match_len);
+        ds_truncate(&actions, actions_len);
+        if (out_port->lrp_networks.n_ipv6_addrs) {
+            /* Use the first non-link-local IPv6 address available. We assume
+             * this is capable of reaching the nexthop.
+             */
+            for (size_t i = 0; i < out_port->lrp_networks.n_ipv6_addrs; i++) {
+                if (in6_is_lla(&out_port->lrp_networks.ipv6_addrs[i].addr)) {
+                    continue;
+                }
+                ds_put_cstr(&match, " && "REGBIT_NEXTHOP_IS_IPV4" == 0");
+                ds_put_format(&actions, REG_SRC_IPV6 " = %s; next;",
+                              out_port->lrp_networks.ipv6_addrs[0].addr_s);
+                ovn_lflow_add(lflows, od, S_ROUTER_IN_POLICY, rule->priority,
+                              ds_cstr(&match), ds_cstr(&actions),
+                              lflow_ref, WITH_HINT(stage_hint));
+                break;
+            }
+        }
+        ds_destroy(&match);
+        ds_destroy(&actions);
+        return;
     }
 
     ovn_lflow_add(lflows, od, S_ROUTER_IN_POLICY, rule->priority,

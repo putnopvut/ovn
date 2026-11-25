@@ -188,11 +188,32 @@ build_route_policies(struct ovn_datapath *od,
 
         uint32_t chain_id = 0;
         uint32_t jump_chain_id = 0;
+        const char *redirect_port_key = NULL;
 
         /* Skip policy if chain name is set but id was not created above */
         if (policy_chain_id(chain_ids, rule->chain, &chain_id)
             && chain_id == 0) {
             continue;
+        }
+
+        if (!strcmp(rule->action, "redirect")) {
+            if (!rule->output_port) {
+                static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(5, 1);
+                VLOG_WARN_RL(&rl, "Router policies of type 'redirect' must "
+                                  "specify an output_port");
+                continue;
+            }
+            /* Verify that the port belongs to the router that the chain is
+             * attached to.
+             */
+            if (!ovn_port_find_in_datapath(od, rule->output_port->name)) {
+                static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(5, 1);
+                VLOG_WARN_RL(&rl, "Router policy output_port '%s' does not belong "
+                                  "to attached Logical Router '%s'",
+                             rule->output_port->name, od->nbr->name);
+                continue;
+            }
+            redirect_port_key = rule->output_port->name;
         }
 
         if (!strcmp(rule->action, "jump")) {
@@ -329,6 +350,7 @@ build_route_policies(struct ovn_datapath *od,
             .chain_id = chain_id,
             .jump_chain_id = jump_chain_id,
             .ecmp_group_id = ecmp_group_id,
+            .redirect_port_key = redirect_port_key,
         };
         hmap_insert(route_policies, &new_rp->key_node, hash);
     }
@@ -580,17 +602,23 @@ static bool
 logical_router_ports_updated(const struct nbrec_logical_router *lr)
 {
     /* We only care if ports change if the lr has policies with a
-     * "reroute" action. Otherwise, we don't care about the ports.
+     * "reroute" or "redirect" action. Otherwise, we don't care about
+     * the ports.
      */
     bool has_reroute = false;
+    bool has_redirect = false;
     for (size_t i = 0; i < lr->n_policies; i++) {
         const struct nbrec_logical_router_policy *rule = lr->policies[i];
         if (!strcmp(rule->action, "reroute")) {
             has_reroute = true;
             break;
         }
+        if (!strcmp(rule->action, "redirect")) {
+            has_redirect = true;
+            break;
+        }
     }
-    if (!has_reroute) {
+    if (!has_reroute && !has_redirect) {
         return false;
     }
 

@@ -1242,4 +1242,7 @@ struct ovn_port_routable_addresses get_op_addresses(
 
 void destroy_routable_addresses(struct ovn_port_routable_addresses *ra);
 
+struct ovn_port *ovn_port_find_in_datapath(const struct ovn_datapath *,
+                                           const char *);
+
 #endif /* NORTHD_H */

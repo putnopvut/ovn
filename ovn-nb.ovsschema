@@ -1,7 +1,7 @@
 {
     "name": "OVN_Northbound",
-    "version": "7.19.0",
-    "cksum": "2631744256 45474",
+    "version": "7.19.1",
+    "cksum": "3930301753 45523",
     "tables": {
         "NB_Global": {
             "columns": {
@@ -651,7 +651,8 @@
                 "action": {"type": {
                     "key": {"type": "string",
                             "enum": ["set",
-                                    ["allow", "drop", "reroute", "jump"]]}}},
+                                    ["allow", "drop", "reroute", "jump",
+                                     "redirect"]]}}},
                 "jump_chain": {"type": {"key": "string", "min": 0, "max": 1}},
                 "nexthop": {"type": {"key": "string", "min": 0, "max": 1}},
                 "nexthops": {"type": {

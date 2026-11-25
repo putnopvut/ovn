@@ -4676,9 +4676,10 @@ nbctl_lr_policy_add(struct ctl_context *ctx)
 
     /* Validate action. */
     if (strcmp(action, "allow") && strcmp(action, "drop")
-        && strcmp(action, "jump") && strcmp(action, "reroute")) {
+        && strcmp(action, "jump") && strcmp(action, "reroute")
+        && strcmp(action, "redirect")) {
         ctl_error(ctx, "%s: action must be one of \"allow\", \"drop\", "
-                  "\"reroute\", \"jump\"", action);
+                  "\"reroute\", \"jump\", \"redirect\"", action);
         return;
     }
     if (!strcmp(action, "reroute")) {
@@ -4687,9 +4688,16 @@ nbctl_lr_policy_add(struct ctl_context *ctx)
             return;
         }
         reroute = true;
-    } else if (output_port) {
-        ctl_error(ctx, "Specifying output-port is only allowed for "
-                       "reroute policies.");
+    }
+    if (output_port) {
+        if (strcmp(action, "reroute") && strcmp(action, "redirect")) {
+            ctl_error(ctx, "Specifying output-port is only allowed for "
+                           "reroute and redirect policies.");
+            return;
+        }
+    } else if (!strcmp(action, "redirect")) {
+        ctl_error(ctx, "An output-port must be specified for redirect "
+                       "policies");
         return;
     }
 
@@ -4751,19 +4759,19 @@ nbctl_lr_policy_add(struct ctl_context *ctx)
 
         free(nexthops_arg);
 
-        if (output_port) {
-            if (vector_len(&nexthops) != 1) {
-                ctl_error(ctx, "output-port option is supported only for "
-                               "policies with a single reroute next hop");
-                goto free_nexthops;
-            }
+        if (output_port && vector_len(&nexthops) != 1) {
+            ctl_error(ctx, "output-port option is supported only for "
+                           "policies with a single reroute next hop");
+            goto free_nexthops;
+        }
+    }
 
-            error = lrp_by_name_or_uuid(ctx, output_port, true, &out_lrp);
-            if (error) {
-                ctl_error(ctx, "unknown output-port: %s", output_port);
-                free(error);
-                goto free_nexthops;
-            }
+    if (output_port) {
+        error = lrp_by_name_or_uuid(ctx, output_port, true, &out_lrp);
+        if (error) {
+            ctl_error(ctx, "unknown output-port: %s", output_port);
+            free(error);
+            goto free_nexthops;
         }
     }
 
@@ -4784,8 +4792,9 @@ nbctl_lr_policy_add(struct ctl_context *ctx)
     if (reroute) {
         nbrec_logical_router_policy_set_nexthops(
             policy, vector_get_array(&nexthops), vector_len(&nexthops));
-        nbrec_logical_router_policy_set_output_port(policy, out_lrp);
     }
+
+    nbrec_logical_router_policy_set_output_port(policy, out_lrp);
 
     /* Parse the options. */
     struct smap options = SMAP_INITIALIZER(&options);

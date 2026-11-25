@@ -26045,6 +26045,30 @@ check_engine_stats bfd_sync recompute nocompute
 check_engine_stats lflow recompute nocompute
 CHECK_NO_CHANGE_AFTER_RECOMPUTE
 
+# Add a redirect policy to lr1. This should be handled incrementally.
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb --output-port=newer_port lr-policy-add lr1 102 "ip4" redirect
+
+# Like with any other type of router policy, this should be handled incrementally.
+check_engine_stats northd norecompute compute
+check_engine_stats route_policies norecompute compute
+check_engine_stats bfd_sync recompute nocompute
+check_engine_stats lflow norecompute compute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+# Add another port to lr1 just to ensure that with the redirect policy,
+# we still see the same results as before with the reroute policy.
+check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
+check ovn-nbctl --wait=sb lrp-add lr1 newest_port 00:00:00:00:00:07 40.0.0.1/24
+
+check_engine_stats northd recompute compute
+check_engine_stats route_policies norecompute compute
+# bfd_sync has to recompute because northd recomputed.
+# Since bfd_sync recomputes, so does lflow.
+check_engine_stats bfd_sync recompute nocompute
+check_engine_stats lflow recompute nocompute
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
 # Delete the logical router that has policies on it.
 # This should also not require a recompute in route_policies
 check as northd ovn-appctl -t ovn-northd inc-engine/clear-stats
@@ -26352,6 +26376,72 @@ ovn-sbctl dump-flows lr0 > lr0flows
 AT_CHECK([grep "lr_out_undnat" lr0flows | ovn_strip_lflows | sort], [0], [dnl
   table=??(lr_out_undnat      ), priority=0    , match=(1), action=(next;)
 ])
+
+OVN_CLEANUP_NORTHD
+AT_CLEANUP
+])
+
+OVN_FOR_EACH_NORTHD_NO_HV([
+AT_SETUP([Router policy with redirect action])
+ovn_start
+
+check ovn-nbctl lr-add lr
+# Add three logical router ports. One is IPv4 only. One is IPv6 only.
+# And one has addresses with both families.
+check ovn-nbctl lrp-add lr lrp-v4 00:00:00:00:00:01 192.168.0.1/24
+check ovn-nbctl lrp-add lr lrp-v6 00:00:00:00:01:01 fd01::1/64
+check ovn-nbctl lrp-add lr lrp-mixed 00:00:00:00:02:01 192.168.1.1/24 fd02::1/64
+
+# Add a redirect policy for lrp-v4
+check ovn-nbctl --wait=sb --output-port=lrp-v4 lr-policy-add lr 100 "ip4" redirect
+
+# Make sure that we see one policy flow added.
+AT_CHECK([ovn-sbctl lflow-list lr | grep "lr_in_policy" | grep "priority=100" | ovn_strip_lflows], [0], [dnl
+  table=??(lr_in_policy       ), priority=100  , match=(ip4 && reg9[[9]] == 1), action=(eth.src = 00:00:00:00:00:01; outport = "lrp-v4"; flags.loopback = 1; reg5 = 192.168.0.1; next;)
+])
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+# Remove the policy for lrp-v4
+check ovn-nbctl --wait=sb lr-policy-del lr 100
+
+# Make sure the policy flow is no longer there.
+AT_CHECK([ovn-sbctl lflow-list lr | grep "lr_in_policy" | grep "priority=100" | ovn_strip_lflows], [0], [dnl
+])
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+# Add a redirect policy for lrp-v6
+check ovn-nbctl --wait=sb --output-port=lrp-v6 lr-policy-add lr 100 "ip6" redirect
+
+# Make sure that we see one policy flow added.
+AT_CHECK([ovn-sbctl lflow-list lr | grep "lr_in_policy" | grep "priority=100" | ovn_strip_lflows], [0], [dnl
+  table=??(lr_in_policy       ), priority=100  , match=(ip6 && reg9[[9]] == 0), action=(eth.src = 00:00:00:00:01:01; outport = "lrp-v6"; flags.loopback = 1; xxreg1 = fd01::1; next;)
+])
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+# Remove the policy for lrp-v6
+check ovn-nbctl --wait=sb lr-policy-del lr 100
+
+# Make sure the policy flow is no longer there.
+AT_CHECK([ovn-sbctl lflow-list lr | grep "lr_in_policy" | grep "priority=100" | ovn_strip_lflows], [0], [dnl
+])
+
+# Add redirect policy for lrp-mixed
+check ovn-nbctl --wait=sb --output-port=lrp-mixed lr-policy-add lr 100 "ip" redirect
+
+# Make sure that we see two policy flows added, since we support both address families.
+AT_CHECK([ovn-sbctl lflow-list lr | grep "lr_in_policy" | grep "priority=100" | ovn_strip_lflows], [0], [dnl
+  table=??(lr_in_policy       ), priority=100  , match=(ip && reg9[[9]] == 0), action=(eth.src = 00:00:00:00:02:01; outport = "lrp-mixed"; flags.loopback = 1; xxreg1 = fd02::1; next;)
+  table=??(lr_in_policy       ), priority=100  , match=(ip && reg9[[9]] == 1), action=(eth.src = 00:00:00:00:02:01; outport = "lrp-mixed"; flags.loopback = 1; reg5 = 192.168.1.1; next;)
+])
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
+
+# Remove the policy for lrp-mixed
+check ovn-nbctl --wait=sb lr-policy-del lr 100
+
+# Make sure the policy flows are no longer there.
+AT_CHECK([ovn-sbctl lflow-list lr | grep "lr_in_policy" | grep "priority=100" | ovn_strip_lflows], [0], [dnl
+])
+CHECK_NO_CHANGE_AFTER_RECOMPUTE
 
 OVN_CLEANUP_NORTHD
 AT_CLEANUP

@@ -52,6 +52,10 @@ struct route_policy {
      * If the policy is not ECMP, then this is 0.
      */
     uint32_t ecmp_group_id;
+    /* For policies with "redirect" action, this is the key for the
+     * port where the matching packet should be sent out.
+     */
+    const char *redirect_port_key;
 };
 
 struct datapath_route_policies {
